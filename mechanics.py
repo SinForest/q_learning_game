@@ -1,8 +1,13 @@
 import numpy as np
 import random
+from queue import PriorityQueue
 
 GAME_DEBUG = True
 
+def l2(a, b):
+    (x1, y1) = a
+    (x2, y2) = b
+    return abs(x1 - x2) + abs(y1 - y2)
 
 class Game:
 
@@ -82,8 +87,19 @@ class Game:
         return
 
     def move_enemies(self):
-        pass
-    
+        new_enemies = []
+        sort_enemies = sorted(self.enemies, key=lambda x:l2(x, self.player))
+        for i, enemy in enumerate(sort_enemies):
+            new_pos = self.next_step(enemy)
+            if self.traps[new_pos]:
+                self.scored()
+            else:
+                if new_pos not in new_enemies and new_pos not in sort_enemies[i:]:
+                    new_enemies.append(new_pos)
+                else:
+                    new_enemies.append(enemy)
+        self.enemies = new_enemies
+
     def game_over(self):
         pass
         exit(123)
@@ -93,5 +109,45 @@ class Game:
         while self.blocked[self.coin] or self.traps[self.coin]:
             self.coin = tuple(np.random.randint(self.size, size=2))
     
-    def scored(self):
-        self.score += 1
+    def scored(self, sc=1):
+        self.score += sc
+    
+    def valid_neighbors(self, x):  #TODO: test
+        x = np.array(x)
+        res = []
+        for y in [[-1, 0], [1, 0], [0, -1], [0, 1]]:
+            xy = x + y
+            if (xy < 0).any(): continue
+            if (xy >= self.size).any(): continue
+            xy = tuple(xy)
+            if self.blocked[xy]: continue
+            res.append(xy)
+        return res
+
+    def next_step(self, goal):  #TODO: test
+        """
+        Calculates path from player to monster
+        using the A* algorithm.
+        Returns next monster step.
+        """
+        kyu = PriorityQueue()
+        kyu.put((0, self.player))
+        came_from = {self.player: None}
+        costs_agg = {self.player: 0}
+
+        while not kyu.empty():
+            curr = kyu.get()[1]
+            if curr == goal: break
+
+            for next in self.valid_neighbors(curr):
+                new_cost = costs_agg[curr] + 1
+                if next not in costs_agg.keys() or new_cost < costs_agg[next]:
+                    costs_agg[next] = new_cost
+                    kyu.put((new_cost + l2(next, goal), next))
+                    came_from[next] = curr
+        
+        if goal in came_from.keys():
+            return came_from[goal]
+        else:
+            raise RuntimeWarning("no path between monster and player")
+            return goal

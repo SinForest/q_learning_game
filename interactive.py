@@ -12,9 +12,9 @@ DIRS = {pg.K_DOWN: 'd',
         pg.K_RIGHT: 'r'}
 
 while True:
-        field = game.get_visual().repeat(8,0).repeat(8,1)
-        pg.surfarray.blit_array(screen, field)
-        pg.display.flip()
+    field = game.get_visual().repeat(8,0).repeat(8,1)
+    pg.surfarray.blit_array(screen, field)
+    pg.display.flip()
 
     for event in pg.event.get():
         if event.type == pg.KEYDOWN:
@@ -24,13 +24,3 @@ while True:
 
             if event.key in DIRS.keys():
                 game.move_player(DIRS[event.key])
-            """
-            if event.key == pg.K_DOWN: #eliminate code duplication
-                game.move_player('d')
-            if event.key == pg.K_UP:
-                game.move_player('u')
-            if event.key == pg.K_LEFT:
-                game.move_player('l')
-            if event.key == pg.K_RIGHT:
-                game.move_player('r')
-            """
