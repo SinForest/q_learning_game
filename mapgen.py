@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 def l2(a, b):
     (x1, y1) = a
     (x2, y2) = b
-    return abs(x1 - x2) + abs(y1 - y2)
+    return (x1 - x2) ** 2 + (y1 - y2) ** 2
 
-def generate_world(size=50, n_traps=15):
+def generate_world(size=50, n_traps=11):
     xx, yy = np.meshgrid(np.linspace(0,2*np.pi,size), np.linspace(0,2*np.pi,size))
 
     candidates = []
@@ -26,7 +26,7 @@ def generate_world(size=50, n_traps=15):
             f    = np.random.uniform(0, 3) ** 2
             a    = np.random.uniform(1, 2)
             r    = np.random.uniform(0, 1) ** 2
-            q    = int(random.getrandbits(1))
+            q    = bool(random.getrandbits(1))
             ty   = -yy if sign else yy
             if q:
                 arr = np.sin((r*xx+ty)*f+p) * a
@@ -134,4 +134,23 @@ def generate_world(size=50, n_traps=15):
 
                 break
 
-    return blocked, traps
+    free = np.stack(np.where(((1 - blocked) - traps).astype(bool))).T
+    mx, ms = None, 0
+    for i in range(10000):
+        x = np.random.randint(0, len(free), 3)
+        x = [free[e] for e in x]
+        s = l2(x[0], x[1]) + l2(x[0], x[2]) + l2(x[2], x[1])
+        if s > ms:
+            mx, ms = x, s
+    nests = [tuple(t) for t in mx]
+
+    mx, ms = None, 0
+    for i in range(10000):
+        x = np.random.randint(0, len(free))
+        x = free[x]
+        s = sum([l2(x, ne) for ne in nests])
+        if s > ms:
+            mx, ms = x, s
+    player = tuple(mx)
+
+    return blocked, traps, nests, player

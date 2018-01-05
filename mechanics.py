@@ -27,7 +27,7 @@ def char_to_pixels(text, path='DejaVuSans.ttf', fontsize=14):
 def l2(a, b):
     (x1, y1) = a
     (x2, y2) = b
-    return abs(x1 - x2) + abs(y1 - y2)
+    return (x1 - x2) ** 2 + (y1 - y2) ** 2
 
 class Game:
 
@@ -38,6 +38,7 @@ class Game:
     C_ENEMY  = [255,   0,   0] #rgb(255,0,0)
     C_COIN   = [255, 255,   0] #rgb(255,255,0)
     C_PTRAP  = [ 60, 150,  60] #rgb(60,150,60)
+    C_NEST   = [110, 120, 180] #rgb(110,20,180)
 
     DIRS = {'u': ( 0,-1),
             'd': ( 0, 1),
@@ -45,22 +46,26 @@ class Game:
             'r': ( 1, 0)}
 
     def __init__(self, size=50, stretch=8):
-        self.player  = (size // 2, size // 2)
         self.size    = size
         self.stretch = stretch
         self.enemies = []
         self.score   = 0
 
-        self.blocked, self.traps = generate_world(size)
-        print("traps_count:", self.traps.sum())
-
-        if GAME_DEBUG:  # new function for world generation here
-            for i in range(20):
-                x = tuple(np.random.randint(size, size=2))
-                while self.blocked[x] or self.traps[x]:
-                    x = tuple(np.random.randint(size, size=2))
-                self.enemies.append(x)
-        self.new_coin()
+        self.blocked, self.traps, self.nests, self.player = generate_world(size)
+        self.v_nests = np.zeros_like(self.blocked).astype(bool)
+        for ne in self.nests:
+            for dx in [-1, 0, 1]:
+                xx = ne[0] + dx
+                if xx < 0 or xx >= size: continue
+                for dy in [-1, 0, 1]:
+                    yy = ne[1] + dy
+                    if yy < 0 or yy >= size: continue
+                    if dx == 0 == dy: continue
+                    self.v_nests[xx,yy] = True
+        
+        self.coins = []
+        for i in range(10):
+            self.new_coin()
     
     def get_visual(self, hud=True):
         """
@@ -68,10 +73,10 @@ class Game:
         """
         vis = np.zeros(self.traps.shape + (3,)).astype(int) + self.C_BG
 
+        vis[self.v_nests] = self.C_NEST
         vis[self.blocked] = self.C_BLOCK
         vis[self.traps]   = self.C_TRAP
         
-
         for en in self.enemies:
             vis[en] = self.C_ENEMY
         
@@ -81,6 +86,8 @@ class Game:
             vis[self.player] = self.C_PTRAP
         else:
             vis[self.player] = self.C_PLAYER
+        
+        
 
         if hud:
             vis = np.pad(vis, ((1, 1), (1, 1), (0, 0)), 'constant')
@@ -143,7 +150,7 @@ class Game:
     
     def new_coin(self):
         self.coin = tuple(np.random.randint(self.size, size=2))
-        while self.blocked[self.coin] or self.traps[self.coin]:
+        while self.blocked[self.coin] or self.traps[self.coin] or self.v_nests[self.coin] or self.coin in self.nests:
             self.coin = tuple(np.random.randint(self.size, size=2))
     
     def scored(self, sc=1):
