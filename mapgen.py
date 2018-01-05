@@ -2,13 +2,18 @@ import pygame as pg
 import numpy as np
 import random
 from chrono import Timer
-from mechanics import Game
 from queue import Queue
+import tqdm
+from tqdm import trange
 
 import matplotlib.pyplot as plt
 
-MAP_STEPS = 4
-def generate_world(size=50):
+def l2(a, b):
+    (x1, y1) = a
+    (x2, y2) = b
+    return abs(x1 - x2) + abs(y1 - y2)
+
+def generate_world(size=50, n_traps=15):
     xx, yy = np.meshgrid(np.linspace(0,2*np.pi,size), np.linspace(0,2*np.pi,size))
 
     candidates = []
@@ -32,7 +37,6 @@ def generate_world(size=50):
             mx = a_sum.max()
             mn = a_sum.min()
             ll = (mx - mn) / 4
-        print(mx, mn, np.median(a_sum))
         for cut_i in range(1,3):
             im = (a_sum >= (mn + cut_i * ll)).astype(int)
             im2 = (a_sum <= (mn + (cut_i + 1) * ll)).astype(int)
@@ -63,7 +67,6 @@ def generate_world(size=50):
                     xy = tuple(xy)
                     if a_map[xy] == 0: continue
                     if cluster[xy] == True: continue
-                    #TODO:  test if already in other cluster
                     kyu.put(np.array(xy))
             clusters.append(cluster)
             mask = ((1 - np.sum(clusters, axis=0)) * a_map).astype(bool)
@@ -73,4 +76,62 @@ def generate_world(size=50):
         new_candidates.append(game_map)
 
     new_candidates.sort(key=lambda x:x.sum())
-    return new_candidates[0]
+    #TODO: check, if suff. space
+    blocked = new_candidates[0]
+    
+    # add traps:
+    traps = np.zeros_like(blocked).astype(bool)
+    for i in trange(n_traps):
+        it = 0
+        while True:
+            it += 1
+            x = np.random.randint(0, size, 2)
+            lines = []
+            if blocked[tuple(x)] == False:
+                continue
+            near = [l2(x, p) for p in np.stack(np.where(traps)).T]
+            if near and (min(near) - 3) < np.random.uniform(30):
+                continue
+                
+            for y in [[-1, 0], [1, 0], [0, -1], [0, 1]]:
+                xy = x + y
+                if (xy < 0).any(): continue
+                if (xy >= size).any(): continue
+                line = []
+                while blocked[tuple(xy)] == False:
+                    line.append(tuple(xy))
+                    xy += y
+                    if (xy < 0).any() or (xy >= size).any():
+                        line = []
+                        break
+                
+                lines.append(line)
+            lines = [x for x in lines if 2 <= len(x) <= 20]
+            if len(lines) > 0:
+                random.shuffle(lines)
+                for t in lines[0]:
+                    traps[t] = True
+                break
+        
+        while True:
+            it += 1
+            x = np.random.randint(0, size, 2)
+            lines = []
+            if blocked[tuple(x)] == True:
+                continue
+            near = [l2(x, p) for p in np.stack(np.where(traps)).T]
+            if near and (min(near) - 3) < np.random.uniform(30):
+                continue
+            xy = [x + y for y in [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [1, -1], [-1, 1]]]
+            xy = [tuple(t) for t in xy if not ((t >= size).any() or (t < 0).any())]
+            xy = [t for t in xy if blocked[t] == False]
+            if len(xy) >= 4:
+                chance = (len(xy) - 6) / 8
+                for t in xy:
+                    rnd = np.random.uniform(0, 1)
+                    if rnd > chance:
+                        traps[t] = True
+
+                break
+
+    return blocked, traps

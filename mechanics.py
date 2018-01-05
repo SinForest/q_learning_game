@@ -5,6 +5,7 @@ import string
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
+from mapgen import generate_world
 
 GAME_DEBUG = True
 
@@ -45,23 +46,15 @@ class Game:
 
     def __init__(self, size=50, stretch=8):
         self.player  = (size // 2, size // 2)
-        self.blocked = np.zeros((size, size)).astype(bool)
-        self.traps   = np.zeros((size, size)).astype(bool)
         self.size    = size
         self.stretch = stretch
         self.enemies = []
         self.score   = 0
 
+        self.blocked, self.traps = generate_world(size)
+        print("traps_count:", self.traps.sum())
+
         if GAME_DEBUG:  # new function for world generation here
-            for i in range(30):
-                x = np.random.randint(size, size=2)
-                self.blocked[x[0]-1:x[0]+1, x[1]-1:x[1]+1] = 1
-            for i in range(30):
-                x = np.random.randint(size, size=2)
-                if bool(random.getrandbits(1)):
-                    self.traps[x[0], x[1]-2:x[1]+2] = 1
-                else:
-                    self.traps[x[0]-2:x[0]+2, x[1]] = 1
             for i in range(20):
                 x = tuple(np.random.randint(size, size=2))
                 while self.blocked[x] or self.traps[x]:
@@ -75,8 +68,9 @@ class Game:
         """
         vis = np.zeros(self.traps.shape + (3,)).astype(int) + self.C_BG
 
-        vis[self.traps]   = self.C_TRAP
         vis[self.blocked] = self.C_BLOCK
+        vis[self.traps]   = self.C_TRAP
+        
 
         for en in self.enemies:
             vis[en] = self.C_ENEMY
