@@ -6,6 +6,7 @@ from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
 from mapgen import generate_world
+import itertools
 
 GAME_DEBUG = True
 
@@ -46,27 +47,34 @@ class Game:
             'r': ( 1, 0)}
 
     def __init__(self, size=50, stretch=8):
-        self.size    = size
-        self.stretch = stretch
-        self.enemies = []
-        self.score   = 0
+        self.size      = size
+        self.stretch   = stretch
+        self.enemies   = []
+        self.score     = 0
+        self.level     = 0
+
+        self.maxdown   = 10
+        self.cooldown  = 10
 
         self.blocked, self.traps, self.nests, self.player = generate_world(size)
         self.v_nests = np.zeros_like(self.blocked).astype(bool)
         for ne in self.nests:
-            for dx in [-1, 0, 1]:
-                xx = ne[0] + dx
-                if xx < 0 or xx >= size: continue
-                for dy in [-1, 0, 1]:
-                    yy = ne[1] + dy
-                    if yy < 0 or yy >= size: continue
-                    if dx == 0 == dy: continue
-                    self.v_nests[xx,yy] = True
+            self.visualize_nest(ne)
         
         self.coins = []
         for i in range(10):
             self.new_coin()
     
+    def visualize_nest(self, ne):
+        for dx in [-1, 0, 1]:
+            xx = ne[0] + dx
+            if xx < 0 or xx >= self.size: continue
+            for dy in [-1, 0, 1]:
+                yy = ne[1] + dy
+                if yy < 0 or yy >= self.size: continue
+                if dx == 0 == dy: continue
+                self.v_nests[xx,yy] = True
+
     def get_visual(self, hud=True):
         """
         creates a visual representation of the game as a numpy array
@@ -101,6 +109,12 @@ class Game:
             pad = 3*self.stretch
             vis[-x-pad:-pad, pad:pad+y][text] = [222, 222, 222]
 
+            if self.cooldown > 0:
+                text = char_to_pixels("|" * self.cooldown, fontsize=28).T
+                x, y = text.shape
+                pad = 3*self.stretch
+                vis[pad:x+pad, pad:pad+y][text] = [222, 222, 222]
+
 
         else:
             vis = vis.repeat(8,0).repeat(8,1)
@@ -115,22 +129,34 @@ class Game:
         if not (0 <= new_player[0] < self.size): return
         if not (0 <= new_player[1] < self.size): return
         if self.blocked[new_player]: return
+        old_player  = self.player 
         self.player = new_player
 
         # move enemies
         self.move_enemies()
+
+        self.tick_spawns()
 
         # test positions
         if self.player in self.coins:
             self.scored(5)
             self.coins.remove(self.player)
             self.new_coin()
-        if self.traps[self.player]:
+        if self.traps[self.player] and self.traps[old_player]:
             self.scored(-1)
         if self.player in self.enemies:
             self.game_over()
         
         return
+
+    def tick_spawns(self):
+        if self.chance():
+            self.cooldown -= 1
+            if self.cooldown < 0:
+                self.cooldown = self.maxdown
+                for nest in self.nests:
+                    if self.chance():
+                        self.enemies.append(nest)
 
     def move_enemies(self):
         new_enemies = []
@@ -156,8 +182,37 @@ class Game:
             coin = tuple(np.random.randint(self.size, size=2))
         self.coins.append(tuple(coin))
     
+    def level_up(self):
+        if self.level % 2 == 0 and self.maxdown > 4:
+            self.maxdown -= 1;
+        else:
+            self.spawn_nest()
+            self.cooldown = self.maxdown
+        self.level += 1
+    
+    def spawn_nest(self):
+        free = np.stack(np.where(((1 - self.blocked) - self.traps).astype(bool))).T
+        mx, ms = None, 0
+        for i in range(10000):
+            x = np.random.randint(0, len(free))
+            x = free[x]
+            s = sum([np.sqrt(l2(ne, x)) for ne in self.nests])
+            if s > ms:
+                mx, ms = x, s
+        self.nests.append(tuple(mx))
+        self.visualize_nest(tuple(mx))
+
+
+    def nextlevel(self):
+        return (self.level + 1) * 50
+
     def scored(self, sc=1):
-        self.score += sc
+        self.score  += sc
+        if self.score > self.nextlevel():
+            self.level_up()
+    
+    def chance(self):
+        return np.random.uniform(0,1) > max(0.5 - (self.score) * 0.0001, 0)
     
     def valid_neighbors(self, x, rnd=True):  #TODO: test
         x = np.array(x)

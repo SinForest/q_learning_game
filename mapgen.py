@@ -5,6 +5,7 @@ from chrono import Timer
 from queue import Queue
 import tqdm
 from tqdm import trange
+import itertools
 
 import matplotlib.pyplot as plt
 
@@ -13,7 +14,7 @@ def l2(a, b):
     (x2, y2) = b
     return (x1 - x2) ** 2 + (y1 - y2) ** 2
 
-def generate_world(size=50, n_traps=11):
+def generate_world(size=50, n_traps=11, n_nests=5):
     xx, yy = np.meshgrid(np.linspace(0,2*np.pi,size), np.linspace(0,2*np.pi,size))
 
     candidates = []
@@ -137,12 +138,15 @@ def generate_world(size=50, n_traps=11):
     free = np.stack(np.where(((1 - blocked) - traps).astype(bool))).T
     mx, ms = None, 0
     for i in range(10000):
-        x = np.random.randint(0, len(free), 3)
+        x = np.random.randint(0, len(free), n_nests - 1)
         x = [free[e] for e in x]
-        s = l2(x[0], x[1]) + l2(x[0], x[2]) + l2(x[2], x[1])
+        s = sum([np.sqrt(l2(*t)) for t in itertools.product(x,x)])
         if s > ms:
             mx, ms = x, s
     nests = [tuple(t) for t in mx]
+
+    ind = np.argmin(((free - np.mean(mx, axis=0)) ** 2).sum(axis=1))
+    nests.append(tuple(free[ind]))
 
     mx, ms = None, 0
     for i in range(10000):
