@@ -3,16 +3,20 @@ import numpy as np
 from chrono import Timer
 from mechanics import Game
 
-screen = pg.display.set_mode((400, 400))
 game = Game()
+resolution = game.get_visual().shape[:2]
+screen = pg.display.set_mode(resolution)
 
 DIRS = {pg.K_DOWN: 'd',
         pg.K_UP: 'u',
         pg.K_LEFT: 'l',
         pg.K_RIGHT: 'r'}
 
+
+
 while True:
-    field = game.get_visual().repeat(8,0).repeat(8,1)
+    field = game.get_visual()
+
     pg.surfarray.blit_array(screen, field)
     pg.display.flip()
 
