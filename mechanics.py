@@ -80,7 +80,8 @@ class Game:
         for en in self.enemies:
             vis[en] = self.C_ENEMY
         
-        vis[self.coin]   = self.C_COIN
+        for co in self.coins:
+            vis[co]   = self.C_COIN
 
         if self.traps[self.player]:
             vis[self.player] = self.C_PTRAP
@@ -120,8 +121,9 @@ class Game:
         self.move_enemies()
 
         # test positions
-        if self.coin == self.player:
-            self.scored()
+        if self.player in self.coins:
+            self.scored(5)
+            self.coins.remove(self.player)
             self.new_coin()
         if self.traps[self.player]:
             self.scored(-1)
@@ -149,9 +151,10 @@ class Game:
         exit(123)
     
     def new_coin(self):
-        self.coin = tuple(np.random.randint(self.size, size=2))
-        while self.blocked[self.coin] or self.traps[self.coin] or self.v_nests[self.coin] or self.coin in self.nests:
-            self.coin = tuple(np.random.randint(self.size, size=2))
+        coin = tuple(np.random.randint(self.size, size=2))
+        while self.blocked[coin] or self.traps[coin] or self.v_nests[coin] or coin in self.nests or coin in self.coins:
+            coin = tuple(np.random.randint(self.size, size=2))
+        self.coins.append(tuple(coin))
     
     def scored(self, sc=1):
         self.score += sc
