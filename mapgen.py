@@ -82,10 +82,9 @@ def generate_world(size=50, n_traps=11, n_nests=5):
     
     # add traps:
     traps = np.zeros_like(blocked).astype(bool)
-    for i in trange(n_traps):
-        it = 0
+    for i in range(n_traps):
+        """
         while True:
-            it += 1
             x = np.random.randint(0, size, 2)
             lines = []
             if blocked[tuple(x)] == False:
@@ -113,9 +112,9 @@ def generate_world(size=50, n_traps=11, n_nests=5):
                 for t in lines[0]:
                     traps[t] = True
                 break
+        """
         
         while True:
-            it += 1
             x = np.random.randint(0, size, 2)
             lines = []
             if blocked[tuple(x)] == True:

@@ -46,12 +46,13 @@ class Game:
             'l': (-1, 0),
             'r': ( 1, 0)}
 
-    def __init__(self, size=50, stretch=8):
+    def __init__(self, size=50, stretch=8, n_traps=11, n_nests=5):
         self.size      = size
         self.stretch   = stretch
         self.enemies   = []
         self.score     = 0
         self.level     = 0
+        self.lives     = 3
 
         self.maxdown   = 10
         self.cooldown  = 10
@@ -104,20 +105,31 @@ class Game:
             vis = np.pad(vis, ((1, 1), (1, 1), (0, 0)), 'constant')
             vis = vis.repeat(self.stretch, 0).repeat(self.stretch, 1)
             
+            # right side of HUD
             text = char_to_pixels("Score: {}".format(self.score), fontsize=28).T
             x, y = text.shape
             pad = 3*self.stretch
             vis[-x-pad:-pad, pad:pad+y][text] = [222, 222, 222]
 
-            if self.cooldown > 0:
-                text = char_to_pixels("|" * self.cooldown, fontsize=28).T
-                x, y = text.shape
-                pad = 3*self.stretch
-                vis[pad:x+pad, pad:pad+y][text] = [222, 222, 222]
+            text = char_to_pixels("Level: {}".format(self.level), fontsize=28).T
+            x2, y2 = text.shape
+            pad = 3*self.stretch
+            vis[-x2-pad:-pad, pad+8+y:pad+8+y+y2][text] = [222, 222, 222]
+
+            # left side of HUD
+            text = char_to_pixels("Lives: {}".format("♥"*self.lives), fontsize=28).T
+            x, y = text.shape
+            pad = 3*self.stretch
+            vis[pad:x+pad, pad:pad+y][text] = [222, 222, 222]
+
+            text = char_to_pixels("{}% ".format(int(self.chance() * 100)) + "|" * self.cooldown, fontsize=28).T
+            x2, y2 = text.shape
+            pad = 3*self.stretch
+            vis[pad:x2+pad, pad+8+y:pad+8+y+y2][text] = [222, 222, 222]
 
 
         else:
-            vis = vis.repeat(8,0).repeat(8,1)
+            vis = vis.repeat(self.stretch,0).repeat(self.stretch,1)
 
 
         return vis
@@ -145,12 +157,12 @@ class Game:
         if self.traps[self.player] and self.traps[old_player]:
             self.scored(-1)
         if self.player in self.enemies:
-            self.game_over()
+            self.damage()
         
         return
 
     def tick_spawns(self):
-        if self.chance():
+        if self.chance(True):
             self.cooldown -= 1
             if self.cooldown < 0:
                 self.cooldown = self.maxdown
@@ -175,6 +187,13 @@ class Game:
     def game_over(self):
         pass
         exit(123)
+
+    def damage(self):
+        self.scored(-20)
+        self.lives -= 1
+        if self.lives < 0:
+            self.game_over()
+        self.enemies = [x for x in self.enemies if l2(self.player, x) > 20]
     
     def new_coin(self):
         coin = tuple(np.random.randint(self.size, size=2))
@@ -208,11 +227,12 @@ class Game:
 
     def scored(self, sc=1):
         self.score  += sc
-        if self.score > self.nextlevel():
+        if sc > 0 and self.score > self.nextlevel():
             self.level_up()
     
-    def chance(self):
-        return np.random.uniform(0,1) > max(0.5 - (self.score) * 0.0001, 0)
+    def chance(self, roll=False):
+        c = max(0.5 - (self.score) * 0.0004, 0)
+        return np.random.uniform(0,1) > c if roll else c
     
     def valid_neighbors(self, x, rnd=True):  #TODO: test
         x = np.array(x)

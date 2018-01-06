@@ -3,6 +3,7 @@ import numpy as np
 from chrono import Timer
 from mechanics import Game
 
+# game = Game(30, 16, 5, 3)
 game = Game()
 resolution = game.get_visual().shape[:2]
 screen = pg.display.set_mode(resolution)
@@ -11,8 +12,6 @@ DIRS = {pg.K_DOWN: 'd',
         pg.K_UP: 'u',
         pg.K_LEFT: 'l',
         pg.K_RIGHT: 'r'}
-
-
 
 while True:
     field = game.get_visual()
@@ -28,3 +27,6 @@ while True:
 
             if event.key in DIRS.keys():
                 game.move_player(DIRS[event.key])
+
+            if event.key == pg.K_c:
+                game.scored(20)
