@@ -41,6 +41,7 @@ class Game:
     C_PLAYER = [  0,   0, 255] #rgb(0,0,255)
     C_ENEMY  = [255,   0,   0] #rgb(255,0,0)
     C_COIN   = [255, 255,   0] #rgb(255,255,0)
+    C_ECOIN  = [255, 127,   0] #rgb(255,127,0)
     C_PTRAP  = [ 60, 150,  60] #rgb(60,150,60)
     C_NEST   = [110, 120, 180] #rgb(110,20,180)
 
@@ -94,7 +95,10 @@ class Game:
             vis[en] = self.C_ENEMY
         
         for co in self.coins:
-            vis[co]   = self.C_COIN
+            if co in self.enemies:
+                vis[co] = self.C_ECOIN
+            else:
+                vis[co] = self.C_COIN
 
         if self.traps[self.player]:
             vis[self.player] = self.C_PTRAP
@@ -172,7 +176,7 @@ class Game:
             self.coins.remove(self.player)
             self.new_coin()
         if self.traps[self.player] and self.traps[old_player]:
-            self.scored(-1)
+            self.scored(-25)
         if self.player in self.enemies:
             self.damage()
         
@@ -195,7 +199,8 @@ class Game:
             if new_pos is None:
                 new_pos = self.player
             if self.traps[new_pos]:
-                self.scored()
+                if np.sqrt(l2(new_pos, self.player)) < self.size * 0.4:
+                    self.scored()
             else:
                 if new_pos not in new_enemies and new_pos not in sort_enemies[i:]:
                     new_enemies.append(new_pos)
@@ -208,7 +213,7 @@ class Game:
         exit(123)
 
     def damage(self):
-        self.scored(-20)
+        self.scored(-100)
         self.lives -= 1
         if self.lives < 0:
             self.game_over()
@@ -237,10 +242,8 @@ class Game:
     def spawn_nest(self):
         free = np.stack(np.where(((1 - self.blocked) - self.traps).astype(bool))).T
         mx, ms = None, 0
-        for i in range(10000):
-            x = np.random.randint(0, len(free))
-            x = free[x]
-            s = sum([np.sqrt(l2(ne, x)) for ne in self.nests])
+        for x in free:
+            s = sum([np.sqrt(l2(ne, x)) for ne in self.nests]) - (len(self.nests) // 2 * np.sqrt(l2(self.player, x)))
             if s > ms:
                 mx, ms = x, s
         self.nests.append(tuple(mx))
@@ -252,10 +255,10 @@ class Game:
 
     def scored(self, sc=1):
         self.score  += sc
-        if sc > 0 and self.score > self.nextlevel():
+        if sc > 0 and self.score >= self.nextlevel():
             self.level_up()
     
-    def valid_neighbors(self, x, rnd=True):  #TODO: test
+    def valid_neighbors(self, x, rnd=True):
         x = np.array(x)
         res = []
         for y in [[-1, 0], [1, 0], [0, -1], [0, 1]]:
