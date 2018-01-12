@@ -32,6 +32,9 @@ def l2(a, b):
 
 class Game:
 
+    START_CHANCE  = 25
+    START_MAXDOWN = 12
+
     C_BG     = [ 50,  50,  50] #rgb(50,50,50)
     C_TRAP   = [  0, 255,   0] #rgb(0,255,0)
     C_BLOCK  = [191, 191, 191] #rgb(191,191,191)
@@ -54,8 +57,9 @@ class Game:
         self.level     = 0
         self.lives     = 3
 
-        self.maxdown   = 10
-        self.cooldown  = 10
+        self.maxdown   = self.START_MAXDOWN
+        self.cooldown  = self.maxdown
+        self.chance    = self.START_CHANCE
 
         self.blocked, self.traps, self.nests, self.player = generate_world(size)
         self.v_nests = np.zeros_like(self.blocked).astype(bool)
@@ -101,7 +105,7 @@ class Game:
 
         if hud:
             vis = np.pad(vis, ((1, 1), (1, 1), (0, 0)), 'constant')
-            vis = np.pad(vis, ((2, 2), (10, 2), (0, 0)), 'constant', constant_values=25)
+            vis = np.pad(vis, ((2, 2), (10, 5), (0, 0)), 'constant', constant_values=25)
             vis = np.pad(vis, ((1, 1), (1, 1), (0, 0)), 'constant')
             vis = vis.repeat(self.stretch, 0).repeat(self.stretch, 1)
             
@@ -122,11 +126,24 @@ class Game:
             pad = 3*self.stretch
             vis[pad:x+pad, pad:pad+y][text] = [222, 222, 222]
 
-            text = char_to_pixels("{}% ".format(int(self.chance() * 100)) + "|" * self.cooldown, fontsize=28).T
+            text = char_to_pixels("Chance: {}%".format(self.chance), fontsize=28).T
             x2, y2 = text.shape
             pad = 3*self.stretch
             vis[pad:x2+pad, pad+8+y:pad+8+y+y2][text] = [222, 222, 222]
-
+            
+            # bottom side of HUD
+            if self.cooldown > 0:
+                text  = char_to_pixels("|" * self.cooldown, fontsize=28).T
+            x, y = text.shape
+            pad = 2*self.stretch
+            if self.START_MAXDOWN > self.maxdown:
+                text2 = char_to_pixels("|" * (self.START_MAXDOWN - self.maxdown), fontsize=28).T
+                x2, y2 = text2.shape
+                vis[pad:x2+pad, -pad-y2:-pad][text2] = [222, 22, 22]
+            else:
+                x2, y2 = 0, 0
+            if self.cooldown > 0:
+                vis[pad+x2:x+x2+pad, -pad-y:-pad][text] = [222, 222, 222]
 
         else:
             vis = vis.repeat(self.stretch,0).repeat(self.stretch,1)
@@ -162,12 +179,12 @@ class Game:
         return
 
     def tick_spawns(self):
-        if self.chance(True):
+        if self.chance >= np.random.randint(0,100):
             self.cooldown -= 1
             if self.cooldown < 0:
                 self.cooldown = self.maxdown
                 for nest in self.nests:
-                    if self.chance():
+                    if self.chance >= np.random.randint(0,100):
                         self.enemies.append(nest)
 
     def move_enemies(self):
@@ -175,6 +192,8 @@ class Game:
         sort_enemies = sorted(self.enemies, key=lambda x:l2(x, self.player))
         for i, enemy in enumerate(sort_enemies):
             new_pos = self.next_step(enemy)
+            if new_pos is None:
+                new_pos = self.player
             if self.traps[new_pos]:
                 self.scored()
             else:
@@ -202,8 +221,14 @@ class Game:
         self.coins.append(tuple(coin))
     
     def level_up(self):
-        if self.level % 2 == 0 and self.maxdown > 4:
-            self.maxdown -= 1;
+        if self.level % 3 == 0:
+            if self.maxdown > 4:
+                self.maxdown -= 1
+                self.cooldown = self.maxdown
+        elif self.level % 3 == 1:
+            self.chance += 5
+            if self.chance > 99:
+                self.chance = 99
         else:
             self.spawn_nest()
             self.cooldown = self.maxdown
@@ -229,10 +254,6 @@ class Game:
         self.score  += sc
         if sc > 0 and self.score > self.nextlevel():
             self.level_up()
-    
-    def chance(self, roll=False):
-        c = max(0.5 - (self.score) * 0.0004, 0)
-        return np.random.uniform(0,1) > c if roll else c
     
     def valid_neighbors(self, x, rnd=True):  #TODO: test
         x = np.array(x)
