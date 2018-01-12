@@ -46,9 +46,13 @@ class Game:
     C_NEST   = [110, 120, 180] #rgb(110,20,180)
 
     DIRS = {'u': ( 0,-1),
+              0: ( 0,-1),
             'd': ( 0, 1),
+              1: ( 0, 1),
             'l': (-1, 0),
-            'r': ( 1, 0)}
+              2: (-1, 0),
+            'r': ( 1, 0),
+              3: ( 1, 0),}
 
     def __init__(self, size=50, stretch=8, n_traps=11, n_nests=5):
         self.size      = size
@@ -150,10 +154,10 @@ class Game:
                 vis[pad+x2:x+x2+pad, -pad-y:-pad][text] = [222, 222, 222]
 
         else:
-            vis = np.pad(vis, ((1, 1), (3, 1), (0, 0)), 'constant')
+            vis = np.pad(vis, ((2, 2), (2, 2), (0, 0)), 'constant')
             vis[-self.level - 1:, 0] = [255, 255, 255]
-            vis[:self.lives*2, 0:2] = [255, 32, 32]
-            vis[-self.cooldown*2 - 1:, 1] = [32, 32, 255]
+            vis[:self.lives*2, 0] = [255, 32, 32]
+            vis[:self.cooldown*2, -1] = [32, 32, 255]
 
 
 
@@ -219,8 +223,7 @@ class Game:
         self.enemies = new_enemies
 
     def game_over(self):
-        pass
-        exit(123)
+        self.__init__()
 
     def damage(self):
         self.scored(-100)
@@ -253,7 +256,10 @@ class Game:
         free = np.stack(np.where(((1 - self.blocked) - self.traps).astype(bool))).T
         mx, ms = None, 0
         for x in free:
-            s = sum([np.sqrt(l2(ne, x)) for ne in self.nests]) - (len(self.nests) // 2 * np.sqrt(l2(self.player, x)))
+            dists = [np.sqrt(l2(ne, x)) for ne in self.nests]
+            if min(dists) < 2:
+                continue
+            s = sum(dists) - (len(self.nests) // 2 * np.sqrt(l2(self.player, x)))
             if s > ms:
                 mx, ms = x, s
         self.nests.append(tuple(mx))
@@ -267,6 +273,9 @@ class Game:
         self.score  += sc
         if sc > 0 and self.score >= self.nextlevel():
             self.level_up()
+    
+    def get_score(self):
+        return self.score
     
     def valid_neighbors(self, x, rnd=True):
         x = np.array(x)
@@ -282,7 +291,7 @@ class Game:
             random.shuffle(res)
         return res
 
-    def next_step(self, goal, traps=False):  #TODO: test
+    def next_step(self, goal, traps=False):  #TODO: test (maybe change to l1 dist?)
         """
         Calculates path from player to monster
         using the A* algorithm.
