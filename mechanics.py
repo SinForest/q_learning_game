@@ -150,7 +150,11 @@ class Game:
                 vis[pad+x2:x+x2+pad, -pad-y:-pad][text] = [222, 222, 222]
 
         else:
-            vis = vis.repeat(self.stretch,0).repeat(self.stretch,1)
+            vis = np.pad(vis, ((1, 1), (3, 1), (0, 0)), 'constant')
+            vis[-self.level - 1:, 0] = [255, 255, 255]
+            vis[:self.lives*2, 0:2] = [255, 32, 32]
+            vis[-self.cooldown*2 - 1:, 1] = [32, 32, 255]
+
 
 
         return vis
