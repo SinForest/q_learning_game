@@ -195,7 +195,13 @@ class Game:
         new_enemies = []
         sort_enemies = sorted(self.enemies, key=lambda x:l2(x, self.player))
         for i, enemy in enumerate(sort_enemies):
-            new_pos = self.next_step(enemy)
+            rand = np.random.randint(10)
+            if rand < 3: # 30% chance
+                new_pos = self.next_step(enemy, traps=True)
+            elif rand < 4: # 10% chance
+                new_pos = self.valid_neighbors(enemy)[0]
+            else: # 50% chance
+                new_pos = self.next_step(enemy)
             if new_pos is None:
                 new_pos = self.player
             if self.traps[new_pos]:
@@ -272,7 +278,7 @@ class Game:
             random.shuffle(res)
         return res
 
-    def next_step(self, goal):  #TODO: test
+    def next_step(self, goal, traps=False):  #TODO: test
         """
         Calculates path from player to monster
         using the A* algorithm.
@@ -288,7 +294,7 @@ class Game:
             if curr == goal: break
 
             for next in self.valid_neighbors(curr):
-                new_cost = costs_agg[curr] + 1
+                new_cost = costs_agg[curr] + (5 if traps and self.traps[next] else 1)
                 if next not in costs_agg.keys() or new_cost < costs_agg[next]:
                     costs_agg[next] = new_cost
                     kyu.put((new_cost + l2(next, goal), next))
