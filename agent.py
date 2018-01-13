@@ -17,19 +17,6 @@ def while_range(n):
         yield i
         i += 1
 
-def to_var(x):
-    """
-    converts one sample (3dim) to a variable (4dim)
-    or a batch of samples (3dim) to variable (4dim)
-    """
-    if x.ndim == 3:
-        x = Tensor(x.transpose(2,0,1)[np.newaxis])
-    elif x.ndim == 4:
-        x = Tensor(x.transpose(0,3,1,2))
-    else:
-        raise RuntimeError("wrong input dimensions")
-    return Variable(x / 128 - 1)
-
 def action_loss(prediction, actions, target):
     n_actions = prediction.size(1)
     actions = Variable(Tensor(np.eye(n_actions)[actions])) #one-hot
@@ -39,8 +26,12 @@ def action_loss(prediction, actions, target):
 
 class Agent:
 
-    def __init__(self, model, view=None):
-        self.model = model
+    def __init__(self, model, cuda=True, view=None):
+        self.cuda = cuda
+        if cuda:
+            self.model = model
+        else:
+            self.model = model.cuda()
         self.opti = torch.optim.SGD(model.parameters(), lr=0.0000001)
         self.memory = []
         self.view = bool(view)
@@ -76,7 +67,7 @@ class Agent:
                 if np.random.rand() < epsilon:
                     a = np.random.randint(n_actions)
                 else:
-                    a = self.model(to_var(S)).data.numpy().argmax()
+                    a = self.model(self.to_var(S)).data.numpy().argmax()
                 
                 game.move_player(a)
 
@@ -96,17 +87,19 @@ class Agent:
                     loss = self.train_on_memory(gamma)
                     self.memory = []
                     print("finished training, loss: {}".format(loss))
+            
+            game.move_player(None) #restart game
     
     def train_on_memory(self, gamma):
 
         (S, a, r, Sp) = zip(*self.memory)
-        Sp = to_var(np.stack(Sp))
+        Sp = self.to_var(np.stack(Sp))
 
         Q_max = self.model(Sp).data.max(1)[0] # Tensor containing maximum Q-value per S'
         r = Tensor(np.array(r))
         target = Variable(r + Q_max * gamma)
 
-        S = to_var(np.stack(S))
+        S = self.to_var(np.stack(S))
         self.model.train()
         self.opti.zero_grad()
         pred = self.model(S)
@@ -115,6 +108,23 @@ class Agent:
         self.opti.step()
         self.model.eval()
         return loss.data[0]
+    
+    def to_var(self, x):
+        """
+        converts one sample (3dim) to a variable (4dim)
+        or a batch of samples (3dim) to variable (4dim)
+        """
+        if x.ndim == 3:
+            x = Tensor(x.transpose(2,0,1)[np.newaxis])
+        elif x.ndim == 4:
+            x = Tensor(x.transpose(0,3,1,2))
+        else:
+            raise RuntimeError("wrong input dimensions")
+        if self.cuda:
+            return Variable(x / 128 - 1).cuda()
+        else:
+            return Variable(x / 128 - 1)
+
 
 
 if __name__ == "__main__":
