@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 from torch.autograd import Variable
 import numpy as np
+import matplotlib.pyplot as plt
 
 import pygame as pg
 
@@ -20,6 +21,9 @@ def while_range(n):
 def action_loss(prediction, actions, target):
     n_actions = prediction.size(1)
     actions = Variable(Tensor(np.eye(n_actions)[actions])) #one-hot
+    if prediction.is_cuda:
+        actions = actions.cuda()
+    # print(type(prediction.data), type(target.data), type(actions.data))
     losses = ((prediction - target[:, None]) * actions) ** 2
     return (losses / losses.size(0)).sum()
 
@@ -29,9 +33,9 @@ class Agent:
     def __init__(self, model, cuda=True, view=None):
         self.cuda = cuda
         if cuda:
-            self.model = model
-        else:
             self.model = model.cuda()
+        else:
+            self.model = model
         self.opti = torch.optim.SGD(model.parameters(), lr=0.0000001)
         self.memory = []
         self.view = bool(view)
@@ -54,42 +58,49 @@ class Agent:
                 epsilon = epsilons[0] - eps_delta * epoch
             else:
                 epsilon = epsilons
-            
-            print("### Starting Epoch {} \w eps={} ###".format(epoch, epsilon))
+
+            print("### Starting Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
 
 
             last_score = game.get_score()
             S = game.get_visual(hud=False)
+
+            try:
+
+                while not game.you_lost:
+
+                    # choose action via epsilon greedy:
+                    if np.random.rand() < epsilon:
+                        a = np.random.randint(n_actions)
+                    else:
+                        a = self.model(self.to_var(S)).max(1)[1].data[0]
+
+                    game.move_player(a)
+
+                    score = game.get_score()
+                    r = score - last_score
+                    last_score = score
+
+                    Sp = game.get_visual(hud=False)
+                    self.memory.append((S, a, r, Sp))
+                    S  = Sp
+                    if self.view:
+                        pg.surfarray.blit_array(self.screen, game.get_visual())
+                        pg.display.flip()
+
+                    if len(self.memory) >= batch_size or game.you_lost:
+                        print("  --> starting training, current score: {}".format(game.get_score()))
+                        loss = self.train_on_memory(gamma)
+                        self.memory = []
+                        print("    --> finished training, loss: {:.4f}".format(loss))
             
-            while not game.you_lost:
+            except KeyboardInterrupt:
 
-                # choose action via epsilon greedy:
-                if np.random.rand() < epsilon:
-                    a = np.random.randint(n_actions)
-                else:
-                    a = self.model(self.to_var(S)).data.numpy().argmax()
-                
-                game.move_player(a)
+                plt.imshow(S.astype(np.uint8))
+                plt.show()
 
-                score = game.get_score()
-                r = score - last_score
-                last_score = score
-
-                Sp = game.get_visual(hud=False)
-                self.memory.append((S, a, r, Sp))
-                S  = Sp
-                if self.view:
-                    pg.surfarray.blit_array(self.screen, game.get_visual())
-                    pg.display.flip()
-
-                if len(self.memory) >= batch_size:
-                    print("starting training, current score: {}".format(game.get_score()))
-                    loss = self.train_on_memory(gamma)
-                    self.memory = []
-                    print("finished training, loss: {}".format(loss))
-            
             game.move_player(None) #restart game
-    
+
     def train_on_memory(self, gamma):
 
         (S, a, r, Sp) = zip(*self.memory)
@@ -97,6 +108,8 @@ class Agent:
 
         Q_max = self.model(Sp).data.max(1)[0] # Tensor containing maximum Q-value per S'
         r = Tensor(np.array(r))
+        if self.cuda:
+            r = r.cuda()
         target = Variable(r + Q_max * gamma)
 
         S = self.to_var(np.stack(S))
@@ -108,7 +121,7 @@ class Agent:
         self.opti.step()
         self.model.eval()
         return loss.data[0]
-    
+
     def to_var(self, x):
         """
         converts one sample (3dim) to a variable (4dim)
@@ -120,10 +133,11 @@ class Agent:
             x = Tensor(x.transpose(0,3,1,2))
         else:
             raise RuntimeError("wrong input dimensions")
+        x = Variable(x / 128 - 1)
         if self.cuda:
-            return Variable(x / 128 - 1).cuda()
+            return x.cuda()
         else:
-            return Variable(x / 128 - 1)
+            return x
 
 
 
@@ -136,4 +150,4 @@ if __name__ == "__main__":
     # agent = Agent(net, view=game.get_visual().shape[:2])
     agent = Agent(net)
 
-    agent.train(game, batch_size=32)
+    agent.train(game, batch_size=512)
