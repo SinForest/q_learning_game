@@ -55,6 +55,8 @@ class Game:
               3: ( 1, 0),}
 
     def __init__(self, size=50, stretch=8, n_traps=11, n_nests=5):
+        self.you_lost = False
+
         self.size      = size
         self.stretch   = stretch
         self.enemies   = []
@@ -91,23 +93,24 @@ class Game:
         """
         vis = np.zeros(self.traps.shape + (3,)).astype(int) + self.C_BG
 
-        vis[self.v_nests] = self.C_NEST
-        vis[self.blocked] = self.C_BLOCK
-        vis[self.traps]   = self.C_TRAP
-        
-        for en in self.enemies:
-            vis[en] = self.C_ENEMY
-        
-        for co in self.coins:
-            if co in self.enemies:
-                vis[co] = self.C_ECOIN
-            else:
-                vis[co] = self.C_COIN
+        if not self.you_lost:
+            vis[self.v_nests] = self.C_NEST
+            vis[self.blocked] = self.C_BLOCK
+            vis[self.traps]   = self.C_TRAP
+            
+            for en in self.enemies:
+                vis[en] = self.C_ENEMY
+            
+            for co in self.coins:
+                if co in self.enemies:
+                    vis[co] = self.C_ECOIN
+                else:
+                    vis[co] = self.C_COIN
 
-        if self.traps[self.player]:
-            vis[self.player] = self.C_PTRAP
-        else:
-            vis[self.player] = self.C_PLAYER
+            if self.traps[self.player]:
+                vis[self.player] = self.C_PTRAP
+            else:
+                vis[self.player] = self.C_PLAYER
         
         
 
@@ -163,7 +166,15 @@ class Game:
 
         return vis
     
+    def n_actions(self):
+            return 4
+
     def move_player(self, dir):
+        # restart game if neccesary
+        if self.you_lost:
+            self.__init__()
+            return
+
         # move player
         dir = self.DIRS[dir]
         new_player = (self.player[0] + dir[0], self.player[1] + dir[1])
@@ -223,7 +234,7 @@ class Game:
         self.enemies = new_enemies
 
     def game_over(self):
-        self.__init__()
+        self.you_lost = True
 
     def damage(self):
         self.scored(-100)
