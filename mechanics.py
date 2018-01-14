@@ -173,14 +173,14 @@ class Game:
         # restart game if neccesary
         if self.you_lost:
             self.__init__()
-            return
+            return None
 
         # move player
         dir = self.DIRS[dir]
         new_player = (self.player[0] + dir[0], self.player[1] + dir[1])
-        if not (0 <= new_player[0] < self.size): return
-        if not (0 <= new_player[1] < self.size): return
-        if self.blocked[new_player]: return
+        if not (0 <= new_player[0] < self.size): return False
+        if not (0 <= new_player[1] < self.size): return False
+        if self.blocked[new_player]: return False
         old_player  = self.player 
         self.player = new_player
 
@@ -199,7 +199,7 @@ class Game:
         if self.player in self.enemies:
             self.damage()
         
-        return
+        return True
 
     def tick_spawns(self):
         if self.chance >= np.random.randint(0,100):

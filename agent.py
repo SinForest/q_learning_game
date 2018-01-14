@@ -43,29 +43,35 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=100, batch_size=256, gamma=0.9, epsilons=[1.0, 0.1]):
+    def train(self, game, n_epochs=1000, batch_size=256, gamma=0.9, epsilons=[1.0, 0.1], max_steps=None, save_interval=10):
+
+        if n_epochs is None and type(epsilons) == list:
+            raise RuntimeError("n_epochs or epsilons must be fixed scalar")
 
         # TODO: setup game
         n_actions = game.n_actions()
 
         self.model.eval()
 
-        eps_delta = (epsilons[0] - epsilons[1]) / (n_epochs - 1)
+        if type(epsilons) == list:
+            eps_delta = (epsilons[0] - epsilons[1]) / (n_epochs - 1)
 
         for epoch in while_range(n_epochs):
 
-            if type(epsilons) == list:
-                epsilon = epsilons[0] - eps_delta * epoch
-            else:
-                epsilon = epsilons
-
-            print("### Starting Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
-
-
-            last_score = game.get_score()
-            S = game.get_visual(hud=False)
-
             try:
+
+                if type(epsilons) == list:
+                    epsilon = epsilons[0] - eps_delta * epoch
+                else:
+                    epsilon = epsilons
+
+                print("### Starting Epoch {} \w eps={:.2f} ###\n".format(epoch, epsilon))
+                steps = 0
+
+                last_score = game.get_score()
+                S = game.get_visual(hud=False)
+
+            
 
                 while not game.you_lost:
 
@@ -75,11 +81,15 @@ class Agent:
                     else:
                         a = self.model(self.to_var(S)).max(1)[1].data[0]
 
-                    game.move_player(a)
+                    moved = game.move_player(a)
 
                     score = game.get_score()
                     r = score - last_score
                     last_score = score
+
+                    # penalize invalid movements
+                    if moved == False:
+                        r -= 200
 
                     Sp = game.get_visual(hud=False)
                     self.memory.append((S, a, r, Sp))
@@ -89,17 +99,33 @@ class Agent:
                         pg.display.flip()
 
                     if len(self.memory) >= batch_size or game.you_lost:
-                        print("  --> starting training, current score: {}".format(game.get_score()))
+                        print("  --> starting training, {}score: {}{}  [{}]".format("\33[33m", game.get_score(), "\33[37m", epoch))
+                        print("     -->                 {}lives: {}{}".format("\33[31m", "♥" * game.lives, "\33[37m"))
                         loss = self.train_on_memory(gamma)
                         self.memory = []
-                        print("    --> finished training, loss: {:.4f}".format(loss))
+                        print("     -->                  {}loss: {:.4f}{}\n".format("\33[32m", loss, "\33[37m"))
+                    
+                    steps += 1
+                    if max_steps and steps > max_steps:
+                        game.game_over()
+
+                #[end] while not game.you_lost
+
+                if (epoch + 1) % save_interval == 0 or epoch == n_epochs - 1:
+                    print("  --> writing model to file...\n")
+                    self.save(epoch)
             
+                game.move_player(None) #restart game
+
             except KeyboardInterrupt:
 
                 plt.imshow(S.astype(np.uint8))
                 plt.show()
+                exit(123)
+        
+        #[end] for epoch in while_range(n_epochs)
 
-            game.move_player(None) #restart game
+            
 
     def train_on_memory(self, gamma):
 
@@ -138,6 +164,12 @@ class Agent:
             return x.cuda()
         else:
             return x
+    
+    def save(self, epoch):
+        d = {'epoch'     : epoch,
+             'state_dict': self.model.state_dict(),
+             'optimizer' : self.opti.state_dict()}
+        torch.save(d, "snapshot_{}.nn".format(epoch))
 
 
 
@@ -150,4 +182,4 @@ if __name__ == "__main__":
     # agent = Agent(net, view=game.get_visual().shape[:2])
     agent = Agent(net)
 
-    agent.train(game, batch_size=512)
+    agent.train(game, batch_size=512, max_steps=5120, save_interval=20, n_epochs=3000)

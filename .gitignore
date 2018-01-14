@@ -1,3 +1,4 @@
 ignore/**
 **/*.ttf
 **/__pycache__
+**/snapshot*.nn
