@@ -55,11 +55,17 @@ class Game:
               3: ( 1, 0),}
 
     def __init__(self, size=50, stretch=8, n_traps=11, n_nests=5, easy=False):
-        self.you_lost = False
 
         self.size      = size
         self.stretch   = stretch
         self.easy      = easy
+        self.n_traps   = n_traps
+        self.n_nests   = n_nests
+
+        self.init_game()
+
+    def init_game(self):
+        self.you_lost = False
         self.enemies   = []
         self.score     = 0
         self.level     = 0
@@ -69,7 +75,7 @@ class Game:
         self.cooldown  = self.maxdown
         self.chance    = self.START_CHANCE
 
-        self.blocked, self.traps, self.nests, self.player = generate_world(size)
+        self.blocked, self.traps, self.nests, self.player = generate_world(self.size, self.n_traps, self.n_nests)
         self.v_nests = np.zeros_like(self.blocked).astype(bool)
         for ne in self.nests:
             self.visualize_nest(ne)
@@ -173,7 +179,7 @@ class Game:
     def move_player(self, dir):
         # restart game if neccesary
         if self.you_lost:
-            self.__init__()
+            self.init_game()
             return None
 
         # move player

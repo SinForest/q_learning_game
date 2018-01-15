@@ -25,7 +25,6 @@ def action_loss(prediction, actions, target):
     actions = Variable(Tensor(np.eye(n_actions)[actions])) #one-hot
     if prediction.is_cuda:
         actions = actions.cuda()
-    # print(type(prediction.data), type(target.data), type(actions.data))
     losses = ((prediction - target[:, None]) * actions) ** 2
     return losses.sum()
 
@@ -136,6 +135,7 @@ class Agent:
 
         for i in trange(n_iter, ncols=44):
             (S, a, r, Sp) = zip(*(self.memory[i*batch_size:(i+1)*batch_size]))
+
             Sp = self.to_var(np.stack(Sp))
 
             Q_max = self.model(Sp).data.max(1)[0] # Tensor containing maximum Q-value per S'
@@ -182,16 +182,16 @@ class Agent:
 
 if __name__ == "__main__":
     from mechanics import Game
-    from model import Network
+    from model import *
     import argparse
 
     parser = argparse.ArgumentParser(description='Train the agent')
     parser.add_argument("--cuda", "-c", help="use CUDA", action="store_true")
     args = parser.parse_args()
 
-    game  = Game(easy=True)
+    game  = Game(easy=True, size=28)
     inp   = game.get_visual(hud=False).shape[0]
-    net   = Network(inp, 4)
+    net   = NetworkSmall(inp, 4)
     agent = Agent(net, cuda=args.cuda)
 
     agent.train(game, batch_size=16, max_steps=32, save_interval=20, memory_size=162)
