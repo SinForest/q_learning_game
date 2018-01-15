@@ -54,6 +54,7 @@ class Agent:
 
         epsilon = epsilons[0]
         train_epoch = 0
+        highscore = float("-inf")
 
         for epoch in while_range(n_epochs):
 
@@ -106,7 +107,8 @@ class Agent:
 
                         if train_epoch % save_interval == 0 or train_epoch + 1 == n_epochs:
                             print("   --> writing model to file...")
-                            self.save(train_epoch)
+                            self.save(train_epoch, highscore)
+                            highscore = 0
                         print("-"*(30 + len("TRAINING PHASE")) + "\33[m")
                     steps += 1
                     if max_steps and steps > max_steps:
@@ -115,6 +117,8 @@ class Agent:
                 #[end] while not game.you_lost
 
                 print("  --> end of round, {}score: {}{}\n".format("\33[33m", game.get_score(), "\33[m"))
+                if game.get_score() > highscore:
+                    highscore = game.get_score()
                 game.move_player(None) #restart game
 
             except KeyboardInterrupt:
@@ -138,6 +142,7 @@ class Agent:
 
             Sp = self.to_var(np.stack(Sp))
 
+            self.model.eval()
             Q_max = self.model(Sp).data.max(1)[0] # Tensor containing maximum Q-value per S'
             r = Tensor(np.array(r))
             if self.cuda:
@@ -172,13 +177,11 @@ class Agent:
         else:
             return x
     
-    def save(self, epoch):
+    def save(self, epoch, highscore):
         d = {'epoch'     : epoch,
              'state_dict': self.model.state_dict(),
              'optimizer' : self.opti.state_dict()}
-        torch.save(d, "snapshot_{}.nn".format(epoch))
-
-
+        torch.save(d, "snapshot_{}_[{}].nn".format(epoch, highscore))
 
 if __name__ == "__main__":
     from mechanics import Game
@@ -194,4 +197,5 @@ if __name__ == "__main__":
     net   = NetworkSmall(inp, 4)
     agent = Agent(net, cuda=args.cuda)
 
-    agent.train(game, batch_size=512, max_steps=1000, save_interval=20, memory_size=51200)
+    # agent.train(game, batch_size=512, max_steps=1000, save_interval=5, memory_size=51200)
+    agent.train(game, batch_size=64, max_steps=120, save_interval=5, memory_size=512)

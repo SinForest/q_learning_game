@@ -72,8 +72,7 @@ class NetworkSmall(nn.Module):
         tmp = Variable(torch.Tensor(1, 3, inp_size, inp_size))
         out_size = self.conv(tmp).size(-1)
 
-        self.lin = nn.Sequential(nn.Dropout2d(),
-                                 nn.Conv2d(64, 128, kernel_size=out_size),
+        self.lin = nn.Sequential(nn.Conv2d(64, 128, kernel_size=out_size),
                                  nn.ReLU(),
                                  nn.Conv2d(128, n_actions, kernel_size=1))
 
