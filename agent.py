@@ -197,5 +197,4 @@ if __name__ == "__main__":
     net   = NetworkSmall(inp, 4)
     agent = Agent(net, cuda=args.cuda)
 
-    # agent.train(game, batch_size=512, max_steps=1000, save_interval=5, memory_size=51200)
-    agent.train(game, batch_size=64, max_steps=120, save_interval=5, memory_size=512)
+    agent.train(game, batch_size=512, max_steps=1000, save_interval=5, memory_size=51200)
