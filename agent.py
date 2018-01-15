@@ -176,10 +176,15 @@ class Agent:
 if __name__ == "__main__":
     from mechanics import Game
     from model import Network
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Train the agent')
+    parser.add_argument("--cuda", "-c", help="use CUDA", action="store_true")
+    args = parser.parse_args()
+
     game  = Game()
     inp   = game.get_visual(hud=False).shape[0]
     net   = Network(inp, 4)
-    # agent = Agent(net, view=game.get_visual().shape[:2])
-    agent = Agent(net)
+    agent = Agent(net, cuda=args.cuda)
 
     agent.train(game, batch_size=512, max_steps=5120, save_interval=20, n_epochs=3000)
