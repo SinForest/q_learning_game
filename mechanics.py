@@ -54,11 +54,12 @@ class Game:
             'r': ( 1, 0),
               3: ( 1, 0),}
 
-    def __init__(self, size=50, stretch=8, n_traps=11, n_nests=5):
+    def __init__(self, size=50, stretch=8, n_traps=11, n_nests=5, easy=False):
         self.you_lost = False
 
         self.size      = size
         self.stretch   = stretch
+        self.easy      = easy
         self.enemies   = []
         self.score     = 0
         self.level     = 0
@@ -202,6 +203,7 @@ class Game:
         return True
 
     def tick_spawns(self):
+        if self.easy: return
         if self.chance >= np.random.randint(0,100):
             self.cooldown -= 1
             if self.cooldown < 0:
