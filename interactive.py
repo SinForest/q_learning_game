@@ -28,6 +28,7 @@ while True:
         if event.type == pg.KEYDOWN:
 
             if event.key == pg.K_ESCAPE:
+                game.kill_pregen()
                 exit()
 
             if event.key in DIRS.keys():

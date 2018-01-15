@@ -9,8 +9,21 @@ from mapgen import generate_world
 import itertools
 import os
 import pickle
+from time import sleep
+from multiprocessing import Process
 
 GAME_DEBUG = True
+
+def process_pregen(args, interval=0.1, max_lvls=100):
+    while(True):
+        lvl_dir = "levels/{}_{}_{}/".format(*args)
+        if not os.path.exists(lvl_dir):
+            os.makedirs(lvl_dir)
+        
+        if len([name for name in os.listdir(lvl_dir) if os.path.isfile(lvl_dir + name)]) < max_lvls:
+            pregen_level(*args)
+        
+        sleep(interval)
 
 def pregen_level(size, n_traps=None, n_nests=None):
     lvl_dir = "levels/{}_{}_{}/".format(size, n_traps, n_nests)
@@ -21,9 +34,6 @@ def pregen_level(size, n_traps=None, n_nests=None):
 
     name = hex(hash(world[0].tostring()))[3:11] + ".p"
     pickle.dump(world, open(lvl_dir + name, 'wb'))
-
-
-
 
 def char_to_pixels(text, path='DejaVuSans.ttf', fontsize=14):
     """
@@ -69,13 +79,18 @@ class Game:
             'r': ( 1, 0),
               3: ( 1, 0),}
 
-    def __init__(self, size=50, stretch=8, n_traps=None, n_nests=None, easy=False, use_preload=True):
+    def __init__(self, size=50, stretch=8, n_traps=None, n_nests=None, easy=False, pregen=True):
 
         self.size      = size
         self.stretch   = stretch
         self.easy      = easy
         self.n_traps   = n_traps
         self.n_nests   = n_nests
+        self.pregen    = pregen
+
+        if pregen:
+            self.pregen = Process(target=process_pregen, args=((size, n_traps, n_nests),))
+            self.pregen.start()
 
         self.init_game()
 
@@ -90,7 +105,19 @@ class Game:
         self.cooldown  = self.maxdown
         self.chance    = self.START_CHANCE
 
-        self.blocked, self.traps, self.nests, self.player = generate_world(self.size, self.n_traps, self.n_nests)
+        if self.pregen:
+            try:
+                lvl_dir  = "levels/{}_{}_{}/".format(self.size, self.n_traps, self.n_nests)
+                lvl_name = random.choice([name for name in os.listdir(lvl_dir) if os.path.isfile(lvl_dir + name)])
+                self.blocked, self.traps, self.nests, self.player = pickle.load(open(lvl_dir + lvl_name, 'rb'))
+                os.remove(lvl_dir + lvl_name)
+            except:
+                print("Couldn't load level, generating new one")
+                self.blocked, self.traps, self.nests, self.player = generate_world(self.size, self.n_traps, self.n_nests)
+        else:
+            self.blocked, self.traps, self.nests, self.player = generate_world(self.size, self.n_traps, self.n_nests)
+        
+        
         self.v_nests = np.zeros_like(self.blocked).astype(bool)
         for ne in self.nests:
             self.visualize_nest(ne)
@@ -108,6 +135,10 @@ class Game:
                 if yy < 0 or yy >= self.size: continue
                 if dx == 0 == dy: continue
                 self.v_nests[xx,yy] = True
+    
+    def kill_pregen(self):
+        if self.pregen:
+            self.pregen.terminate()
 
     def get_visual(self, hud=True):
         """
