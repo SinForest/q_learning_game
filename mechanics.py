@@ -7,11 +7,22 @@ from PIL import ImageFont
 from PIL import ImageDraw
 from mapgen import generate_world
 import itertools
+import os
+import pickle
 
 GAME_DEBUG = True
 
-def pregen_level(size, n_traps, n_nests):
-    pass
+def pregen_level(size, n_traps=None, n_nests=None):
+    lvl_dir = "levels/{}_{}_{}/".format(size, n_traps, n_nests)
+    if not os.path.exists(lvl_dir):
+        os.makedirs(lvl_dir)
+    
+    world = generate_world(size, n_traps, n_nests)
+
+    name = hex(hash(world[0].tostring()))[3:11] + ".p"
+    pickle.dump(world, open(lvl_dir + name, 'wb'))
+
+
 
 
 def char_to_pixels(text, path='DejaVuSans.ttf', fontsize=14):
@@ -58,7 +69,7 @@ class Game:
             'r': ( 1, 0),
               3: ( 1, 0),}
 
-    def __init__(self, size=50, stretch=8, n_traps=None, n_nests=None, easy=False):
+    def __init__(self, size=50, stretch=8, n_traps=None, n_nests=None, easy=False, use_preload=True):
 
         self.size      = size
         self.stretch   = stretch

@@ -24,8 +24,6 @@ def generate_world(size=50, n_traps=None, n_nests=None):
     if n_nests is None:
         n_nests = max(math.ceil((size**2) / (50**2) * 4 + 1), 3)
 
-    print(n_traps, n_nests)
-
     candidates = []
 
     for map_i in range(5):
