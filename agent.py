@@ -3,6 +3,8 @@ from torch import Tensor
 from torch.autograd import Variable
 import numpy as np
 import matplotlib.pyplot as plt
+import random
+from tqdm import trange
 
 import pygame as pg
 
@@ -25,7 +27,7 @@ def action_loss(prediction, actions, target):
         actions = actions.cuda()
     # print(type(prediction.data), type(target.data), type(actions.data))
     losses = ((prediction - target[:, None]) * actions) ** 2
-    return (losses / losses.size(0)).sum()
+    return losses.sum()
 
 
 class Agent:
@@ -43,35 +45,26 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=1000, batch_size=256, gamma=0.9, epsilons=[1.0, 0.1], max_steps=None, save_interval=10):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.9, epsilons=(1.0, 0.1, 0.005), max_steps=None, save_interval=10, memory_size=25600):
 
-        if n_epochs is None and type(epsilons) == list:
-            raise RuntimeError("n_epochs or epsilons must be fixed scalar")
 
         # TODO: setup game
         n_actions = game.n_actions()
 
         self.model.eval()
 
-        if type(epsilons) == list:
-            eps_delta = (epsilons[0] - epsilons[1]) / (n_epochs - 1)
+        epsilon = epsilons[0]
+        train_epoch = 0
 
         for epoch in while_range(n_epochs):
 
             try:
 
-                if type(epsilons) == list:
-                    epsilon = epsilons[0] - eps_delta * epoch
-                else:
-                    epsilon = epsilons
-
-                print("### Starting Epoch {} \w eps={:.2f} ###\n".format(epoch, epsilon))
+                print("### Starting Game-Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
                 steps = 0
 
                 last_score = game.get_score()
                 S = game.get_visual(hud=False)
-
-            
 
                 while not game.you_lost:
 
@@ -81,8 +74,8 @@ class Agent:
                     else:
                         a = self.model(self.to_var(S)).max(1)[1].data[0]
 
+                    # move player, calculate reward
                     moved = game.move_player(a)
-
                     score = game.get_score()
                     r = score - last_score
                     last_score = score
@@ -91,30 +84,38 @@ class Agent:
                     if moved == False:
                         r -= 200
 
+                    # get next state
                     Sp = game.get_visual(hud=False)
                     self.memory.append((S, a, r, Sp))
                     S  = Sp
+
+                    # render view for spectating
                     if self.view:
                         pg.surfarray.blit_array(self.screen, game.get_visual())
                         pg.display.flip()
 
-                    if len(self.memory) >= batch_size or game.you_lost:
-                        print("  --> starting training, {}score: {}{}  [{}]".format("\33[33m", game.get_score(), "\33[37m", epoch))
-                        print("     -->                 {}lives: {}{}".format("\33[31m", "♥" * game.lives, "\33[37m"))
-                        loss = self.train_on_memory(gamma)
+                    # train if memory is full
+                    if len(self.memory) >= memory_size:
+                        print("\33[32m" + "\n" + "-"*15 + "TRAINING PHASE" + "-"*15)
+                        print(" --> starting training #{}...".format(train_epoch))
+                        loss = self.train_on_memory(gamma, batch_size)
                         self.memory = []
-                        print("     -->                  {}loss: {:.4f}{}\n".format("\33[32m", loss, "\33[37m"))
-                    
+                        print(" --> loss: {:.4f}".format(loss))
+                        epsilon -= epsilons[2]
+                        epsilon = max(epsilon, epsilons[1])
+                        train_epoch += 1
+
+                        if train_epoch % save_interval == 0 or train_epoch + 1 == n_epochs:
+                            print("   --> writing model to file...")
+                            self.save(train_epoch)
+                        print("-"*(30 + len("TRAINING PHASE")) + "\33[m")
                     steps += 1
                     if max_steps and steps > max_steps:
                         game.game_over()
 
                 #[end] while not game.you_lost
 
-                if (epoch + 1) % save_interval == 0 or epoch == n_epochs - 1:
-                    print("  --> writing model to file...\n")
-                    self.save(epoch)
-            
+                print("  --> end of round, {}score: {}{}\n".format("\33[33m", game.get_score(), "\33[m"))
                 game.move_player(None) #restart game
 
             except KeyboardInterrupt:
@@ -127,26 +128,32 @@ class Agent:
 
             
 
-    def train_on_memory(self, gamma):
+    def train_on_memory(self, gamma, batch_size):
 
-        (S, a, r, Sp) = zip(*self.memory)
-        Sp = self.to_var(np.stack(Sp))
+        random.shuffle(self.memory)
+        n_iter = int(np.ceil(len(self.memory) / batch_size))
+        losses = 0
 
-        Q_max = self.model(Sp).data.max(1)[0] # Tensor containing maximum Q-value per S'
-        r = Tensor(np.array(r))
-        if self.cuda:
-            r = r.cuda()
-        target = Variable(r + Q_max * gamma)
+        for i in trange(n_iter, ncols=44):
+            (S, a, r, Sp) = zip(*(self.memory[i*batch_size:(i+1)*batch_size]))
+            Sp = self.to_var(np.stack(Sp))
 
-        S = self.to_var(np.stack(S))
-        self.model.train()
-        self.opti.zero_grad()
-        pred = self.model(S)
-        loss = action_loss(pred, list(a), target)
-        loss.backward()
-        self.opti.step()
+            Q_max = self.model(Sp).data.max(1)[0] # Tensor containing maximum Q-value per S'
+            r = Tensor(np.array(r))
+            if self.cuda:
+                r = r.cuda()
+            target = Variable(r + Q_max * gamma)
+
+            S = self.to_var(np.stack(S))
+            self.model.train()
+            self.opti.zero_grad()
+            pred = self.model(S)
+            loss = action_loss(pred, list(a), target)
+            loss.backward()
+            self.opti.step()
+            losses += loss.data[0]
         self.model.eval()
-        return loss.data[0]
+        return losses / len(self.memory)
 
     def to_var(self, x):
         """
@@ -182,9 +189,9 @@ if __name__ == "__main__":
     parser.add_argument("--cuda", "-c", help="use CUDA", action="store_true")
     args = parser.parse_args()
 
-    game  = Game()
+    game  = Game(easy=True)
     inp   = game.get_visual(hud=False).shape[0]
     net   = Network(inp, 4)
     agent = Agent(net, cuda=args.cuda)
 
-    agent.train(game, batch_size=512, max_steps=5120, save_interval=20, n_epochs=3000)
+    agent.train(game, batch_size=16, max_steps=32, save_interval=20, memory_size=162)
