@@ -6,6 +6,7 @@ from queue import Queue
 import tqdm
 from tqdm import trange
 import itertools
+import math
 
 import matplotlib.pyplot as plt
 
@@ -14,8 +15,16 @@ def l2(a, b):
     (x2, y2) = b
     return (x1 - x2) ** 2 + (y1 - y2) ** 2
 
-def generate_world(size=50, n_traps=11, n_nests=5):
+def generate_world(size=50, n_traps=None, n_nests=None):
     xx, yy = np.meshgrid(np.linspace(0,2*np.pi,size), np.linspace(0,2*np.pi,size))
+
+    if n_traps is None:
+        n_traps = max(math.ceil((size**2) / (50**2) * 10 + 1), 4)
+    
+    if n_nests is None:
+        n_nests = max(math.ceil((size**2) / (50**2) * 4 + 1), 3)
+
+    print(n_traps, n_nests)
 
     candidates = []
 

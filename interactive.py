@@ -2,9 +2,14 @@ import pygame as pg
 import numpy as np
 from chrono import Timer
 from mechanics import Game
+import argparse
+
+parser = argparse.ArgumentParser(description='Start the game')
+parser.add_argument("--size", "-s", help="hight/width of the game field", action="store", type=int, default=50)
+args = parser.parse_args()
 
 # game = Game(30, 16, 5, 3)
-game = Game()
+game = Game(size=args.size)
 resolution = game.get_visual().shape[:2]
 screen = pg.display.set_mode(resolution)
 

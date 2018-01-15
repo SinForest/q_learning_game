@@ -10,6 +10,10 @@ import itertools
 
 GAME_DEBUG = True
 
+def pregen_level(size, n_traps, n_nests):
+    pass
+
+
 def char_to_pixels(text, path='DejaVuSans.ttf', fontsize=14):
     """
     Based on https://stackoverflow.com/a/27753869/190597 (jsheperd)
@@ -54,7 +58,7 @@ class Game:
             'r': ( 1, 0),
               3: ( 1, 0),}
 
-    def __init__(self, size=50, stretch=8, n_traps=11, n_nests=5, easy=False):
+    def __init__(self, size=50, stretch=8, n_traps=None, n_nests=None, easy=False):
 
         self.size      = size
         self.stretch   = stretch
