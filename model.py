@@ -85,7 +85,8 @@ class NetworkSmall(nn.Module):
         """
 
     def forward(self, x):
-        return self.lin(self.conv(x))
+        x = self.conv(x)
+        return self.lin(x.view(0), -1)
 
 if __name__ == "__main__":
     net = NetworkSmall(54, 4)
