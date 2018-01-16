@@ -28,14 +28,14 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.SGD(model.parameters(), lr=0.00007)
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001)
         self.memory = []
         self.view = bool(view)
         if view:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.9, epsilons=(1.0, 0.1, 0.001), max_steps=None, save_interval=10, memory_size=25600):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(1.0, 0.1, 0.0005), max_steps=None, save_interval=10, memory_size=25600):
 
 
         # TODO: setup game
@@ -139,7 +139,7 @@ class Agent:
             while not m:
                 aa = np.argmax(a)
                 if a.max() == -np.inf:
-                    #this shold never happen!
+                    #this should never happen!
                     print("     no valid moves...")
                     return None
                 m = game.move_player(aa)
@@ -155,7 +155,7 @@ class Agent:
         n_iter = int(np.ceil(len(self.memory) / batch_size))
         losses = 0
         omit = 0
-        loss_fn = nn.MSELoss()
+        loss_fn = nn.SmoothL1Loss(size_average=False)
 
         for i in trange(n_iter, ncols=44):
             (S, a, r, Sp) = zip(*(self.memory[i*batch_size:(i+1)*batch_size]))
@@ -230,4 +230,4 @@ if __name__ == "__main__":
 
     agent = Agent(net, cuda=args.cuda)
 
-    agent.train(game, batch_size=512, max_steps=1500, save_interval=10, memory_size=51200)
+    agent.train(game, batch_size=1024, max_steps=2000, save_interval=10, memory_size=102400)

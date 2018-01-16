@@ -107,7 +107,14 @@ class Game:
         self.cooldown  = self.maxdown
         self.chance    = self.START_CHANCE
 
-        if self.pregen:
+        if self.easy:
+            self.blocked = np.zeros((self.size, self.size)).astype(bool)
+            self.traps   = np.zeros((self.size, self.size)).astype(bool)
+            self.nests   = []
+            self.player  = (self.size // 2, self.size // 2)
+            self.pregen  = []
+
+        elif self.pregen:
             try:
                 lvl_dir  = "levels/{}_{}_{}/".format(self.size, self.n_traps, self.n_nests)
                 lvl_name = random.choice([name for name in os.listdir(lvl_dir) if os.path.isfile(lvl_dir + name)])
@@ -118,9 +125,6 @@ class Game:
                 self.blocked, self.traps, self.nests, self.player = generate_world(self.size, self.n_traps, self.n_nests)
         else:
             self.blocked, self.traps, self.nests, self.player = generate_world(self.size, self.n_traps, self.n_nests)
-        
-        if self.easy:
-            self.traps = np.zeros_like(self.traps).astype(bool)
 
         self.v_nests = np.zeros_like(self.blocked).astype(bool)
         for ne in self.nests:
