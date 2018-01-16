@@ -61,20 +61,19 @@ class NetworkSmall(nn.Module):
     
     def __init__(self, inp_size, n_actions):
         super(NetworkSmall, self).__init__()
-        self.conv = nn.Sequential(nn.Conv2d(3, 32, kernel_size=7, padding=3),
+        self.conv = nn.Sequential(nn.Conv2d(3, 16, kernel_size=7, padding=3),
+                                  nn.BatchNorm2d(16),
+                                  nn.ReLU(),
+                                  nn.Conv2d(16, 32, kernel_size=5, padding=2),
                                   nn.BatchNorm2d(32),
-                                  nn.ReLU(),
-                                  nn.Conv2d(32, 64, kernel_size=5, padding=2),
-                                  nn.BatchNorm2d(64),
-                                  nn.ReLU(),
-                                  nn.MaxPool2d(kernel_size=2, stride=2))
+                                  nn.ReLU())
 
         tmp = Variable(torch.Tensor(1, 3, inp_size, inp_size))
         out_size = self.conv(tmp).size(-1)
 
-        self.lin = nn.Sequential(nn.Conv2d(64, 128, kernel_size=out_size),
+        self.lin = nn.Sequential(nn.Conv2d(32, 32, kernel_size=out_size),
                                  nn.ReLU(),
-                                 nn.Conv2d(128, n_actions, kernel_size=1))
+                                 nn.Conv2d(32, n_actions, kernel_size=1))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

@@ -326,6 +326,7 @@ class Game:
         self.level += 1
     
     def spawn_nest(self):
+        if self.easy: return
         free = np.stack(np.where(((1 - self.blocked) - self.traps).astype(bool))).T
         mx, ms = None, 0
         for x in free:
