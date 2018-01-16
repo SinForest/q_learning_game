@@ -25,8 +25,11 @@ def action_loss(prediction, actions, target):
     actions = Variable(Tensor(np.eye(n_actions)[actions])) #one-hot
     if prediction.is_cuda:
         actions = actions.cuda()
-    losses = ((prediction - target[:, None]) * actions) ** 2
-    return losses.sum()
+    losses = torch.abs((prediction - target[:, None]) * actions)
+    try:
+        return losses.sum()
+    except RuntimeError:
+        return None #Quickfix
 
 
 class Agent:
@@ -37,14 +40,14 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.SGD(model.parameters(), lr=0.0000001)
+        self.opti = torch.optim.SGD(model.parameters(), lr=0.0001)
         self.memory = []
         self.view = bool(view)
         if view:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.9, epsilons=(1.0, 0.1, 0.005), max_steps=None, save_interval=10, memory_size=25600):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.9, epsilons=(1.0, 0.1, 0.001), max_steps=None, save_interval=10, memory_size=25600):
 
 
         # TODO: setup game
@@ -106,10 +109,16 @@ class Agent:
                         train_epoch += 1
 
                         if train_epoch % save_interval == 0 or train_epoch + 1 == n_epochs:
+                            print(" --> starting testing...")
+                            sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
+                            sc = [x for x in sc if x is not None]
+                            print(" --> best: {}, avg: {:.1f}".format(max(sc), sum(sc)/len(sc)))
+
                             print("   --> writing model to file...")
                             self.save(train_epoch, highscore)
                             highscore = 0
                         print("-"*(30 + len("TRAINING PHASE")) + "\33[m")
+
                     steps += 1
                     if max_steps and steps > max_steps:
                         game.game_over()
@@ -123,12 +132,33 @@ class Agent:
 
             except KeyboardInterrupt:
 
-                plt.imshow(S.astype(np.uint8))
-                plt.show()
                 exit(123)
         
         #[end] for epoch in while_range(n_epochs)
 
+    def play(self, game, max_steps):
+        game.game_over()
+        game.move_player(None)
+        steps = 0
+        self.model.eval()
+        while steps < max_steps and not game.you_lost:
+            S = game.get_visual(hud=False)
+            a = self.model(self.to_var(S))#.max(1)[1].data[0]
+            if self.cuda:
+                a = a.cpu()
+            a = a.data.numpy()[0]
+            m = False
+            while not m:
+                aa = np.argmax(a)
+                if a.max() == -np.inf:
+                    #this shold never happen!
+                    print("     no valid moves...")
+                    return None
+                m = game.move_player(aa)
+                a[aa] = -np.inf
+            steps += 1
+        
+        return game.get_score()
             
 
     def train_on_memory(self, gamma, batch_size):
@@ -136,6 +166,7 @@ class Agent:
         random.shuffle(self.memory)
         n_iter = int(np.ceil(len(self.memory) / batch_size))
         losses = 0
+        omit = 0
 
         for i in trange(n_iter, ncols=44):
             (S, a, r, Sp) = zip(*(self.memory[i*batch_size:(i+1)*batch_size]))
@@ -154,11 +185,14 @@ class Agent:
             self.opti.zero_grad()
             pred = self.model(S)
             loss = action_loss(pred, list(a), target)
+            if loss is None:
+                omit += len(self.memory[i*batch_size:(i+1)*batch_size])
+                continue
             loss.backward()
             self.opti.step()
             losses += loss.data[0]
         self.model.eval()
-        return losses / len(self.memory)
+        return losses / (len(self.memory) - omit)
 
     def to_var(self, x):
         """
@@ -181,7 +215,7 @@ class Agent:
         d = {'epoch'     : epoch,
              'state_dict': self.model.state_dict(),
              'optimizer' : self.opti.state_dict()}
-        torch.save(d, "snapshot_{}_[{}].nn".format(epoch, highscore))
+        torch.save(d, "snapshot_{}.nn".format(epoch))
 
 if __name__ == "__main__":
     from mechanics import Game
@@ -190,11 +224,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train the agent')
     parser.add_argument("--cuda", "-c", help="use CUDA", action="store_true")
+    parser.add_argument("--resume", "-r", help="resume from snapshot", action="store", type=str, default="")
     args = parser.parse_args()
 
     game  = Game(easy=True, size=28)
     inp   = game.get_visual(hud=False).shape[0]
     net   = NetworkSmall(inp, 4)
+
+    if args.resume:
+        pass #TODO
+
     agent = Agent(net, cuda=args.cuda)
 
-    agent.train(game, batch_size=512, max_steps=1000, save_interval=5, memory_size=51200)
+    agent.train(game, batch_size=512, max_steps=1500, save_interval=10, memory_size=51200)

@@ -14,7 +14,7 @@ from multiprocessing import Process
 
 GAME_DEBUG = True
 
-def process_pregen(args, interval=0.1, max_lvls=100):
+def process_pregen(args, interval=0, max_lvls=300):
     while(True):
         lvl_dir = "levels/{}_{}_{}/".format(*args)
         if not os.path.exists(lvl_dir):
