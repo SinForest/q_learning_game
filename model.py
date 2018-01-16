@@ -69,12 +69,12 @@ class NetworkSmall(nn.Module):
                                   nn.ReLU())
 
         tmp = Variable(torch.Tensor(1, 3, inp_size, inp_size))
-        out_size = self.conv(tmp).size(-1)
+        out_size = reduce(operator.mul, self.conv(tmp).size())
 
-        self.lin = nn.Sequential(nn.Conv2d(32, 32, kernel_size=out_size),
+        self.lin = nn.Sequential(nn.Linear(out_size, 32),
                                  nn.ReLU(),
-                                 nn.Conv2d(32, n_actions, kernel_size=1))
-
+                                 nn.Linear(32, n_actions))
+        """
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
@@ -82,12 +82,12 @@ class NetworkSmall(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+        """
 
     def forward(self, x):
-        x = self.lin(self.conv(x))
-        return x.view(x.size(0), -1)
+        return self.lin(self.conv(x))
 
 if __name__ == "__main__":
-    net = Network(54, 4)
+    net = NetworkSmall(54, 4)
     tmp = Variable(torch.Tensor(64, 3, 54, 54))
     print(net(tmp))

@@ -35,7 +35,7 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(1.0, 0.1, 0.0005), max_steps=None, save_interval=10, memory_size=25600):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(0.9, 0.1, 0.0005), max_steps=None, save_interval=10, memory_size=25600):
 
 
         # TODO: setup game
@@ -100,7 +100,7 @@ class Agent:
                             print(" --> starting testing...")
                             sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
                             sc = [x for x in sc if x is not None]
-                            print(" --> best: {}, avg: {:.1f}".format(max(sc), sum(sc)/len(sc)))
+                            print(" --> best: {}, avg: {:.2f}".format(max(sc), sum(sc)/len(sc)))
 
                             print("   --> writing model to file...")
                             self.save(train_epoch, highscore)
