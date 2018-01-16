@@ -20,18 +20,6 @@ def while_range(n):
         yield i
         i += 1
 
-def action_loss(prediction, actions, target):
-    n_actions = prediction.size(1)
-    actions = Variable(Tensor(np.eye(n_actions)[actions])) #one-hot
-    if prediction.is_cuda:
-        actions = actions.cuda()
-    losses = torch.abs((prediction - target[:, None]) * actions)
-    try:
-        return losses.sum()
-    except RuntimeError:
-        return None #Quickfix
-
-
 class Agent:
 
     def __init__(self, model, cuda=True, view=None):
@@ -40,7 +28,7 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.SGD(model.parameters(), lr=0.0001)
+        self.opti = torch.optim.SGD(model.parameters(), lr=0.00007)
         self.memory = []
         self.view = bool(view)
         if view:
@@ -167,6 +155,7 @@ class Agent:
         n_iter = int(np.ceil(len(self.memory) / batch_size))
         losses = 0
         omit = 0
+        loss_fn = nn.MSELoss()
 
         for i in trange(n_iter, ncols=44):
             (S, a, r, Sp) = zip(*(self.memory[i*batch_size:(i+1)*batch_size]))
@@ -178,16 +167,21 @@ class Agent:
             r = Tensor(np.array(r))
             if self.cuda:
                 r = r.cuda()
-            target = Variable(r + Q_max * gamma)
+            target = r + Q_max * gamma
 
             S = self.to_var(np.stack(S))
             self.model.train()
             self.opti.zero_grad()
             pred = self.model(S)
-            loss = action_loss(pred, list(a), target)
-            if loss is None:
-                omit += len(self.memory[i*batch_size:(i+1)*batch_size])
-                continue
+
+            n_actions = pred.size(1)
+            a = Tensor(np.eye(n_actions)[list(a)]) #one-hot
+            if self.cuda:
+                a = a.cuda()
+            target = Variable(target[:, None] * a + pred.data * (1-a))
+
+            loss = loss_fn(pred, target)
+
             loss.backward()
             self.opti.step()
             losses += loss.data[0]
