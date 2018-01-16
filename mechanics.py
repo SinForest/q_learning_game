@@ -79,7 +79,7 @@ class Game:
             'r': ( 1, 0),
               3: ( 1, 0),}
 
-    def __init__(self, size=50, stretch=8, n_traps=None, n_nests=None, easy=False, pregen=True):
+    def __init__(self, size=50, stretch=8, n_traps=None, n_nests=None, easy=False, pregen=2):
 
         self.size      = size
         self.stretch   = stretch
@@ -89,8 +89,10 @@ class Game:
         self.pregen    = pregen
 
         if pregen:
-            self.pregen = Process(target=process_pregen, args=((size, n_traps, n_nests),))
-            self.pregen.start()
+
+            self.pregen = [Process(target=process_pregen, args=((size, n_traps, n_nests),)) for __ in range(pregen)]
+            for p in self.pregen:
+                p.start()
 
         self.init_game()
 
@@ -117,7 +119,9 @@ class Game:
         else:
             self.blocked, self.traps, self.nests, self.player = generate_world(self.size, self.n_traps, self.n_nests)
         
-        
+        if self.easy:
+            self.traps = np.zeros_like(self.traps).astype(bool)
+
         self.v_nests = np.zeros_like(self.blocked).astype(bool)
         for ne in self.nests:
             self.visualize_nest(ne)
