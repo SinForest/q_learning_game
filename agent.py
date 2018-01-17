@@ -176,6 +176,8 @@ class Agent:
             self.model.train()
             self.opti.zero_grad()
             pred = self.model(S)
+            if self.debug:
+                print(pred) #DELETE THIS ASAP
 
             n_actions = pred.size(1)
             a = Tensor(np.eye(n_actions)[list(a)]) #one-hot
@@ -216,7 +218,7 @@ class Agent:
 
 if __name__ == "__main__":
     from mechanics import Game
-    from model import *
+    from model import NetworkSmall
     import argparse
 
     parser = argparse.ArgumentParser(description='Train the agent')
