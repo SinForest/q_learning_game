@@ -38,7 +38,7 @@ class Agent:
         if debug:
             self.debugger = Debugger("./debug_screens.npy", self)
             model.eval()
-            debugger.eval_screens()
+            self.debugger.eval_screens()
 
 
     def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(0.9, 0.1, 0.0005), max_steps=None, save_interval=10, memory_size=25600):
