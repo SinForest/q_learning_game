@@ -93,8 +93,8 @@ class NetworkSmall(nn.Module):
 
 if __name__ == "__main__":
 
-    net = NetworkSmall(54, 4)
-    tmp = Variable(torch.rand(8, 3, 54, 54))
+    net = NetworkSmall(32, 4)
+    tmp = Variable(torch.rand(8, 3, 32, 32))
     print("cpu:", net(tmp))
 
     net = net.cuda()
