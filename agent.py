@@ -219,6 +219,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train the agent')
     parser.add_argument("--cuda", "-c", help="use CUDA", action="store_true")
+    parser.add_argument("--debug", "-d", help="enable debugging", action="store_true")
     parser.add_argument("--resume", "-r", help="resume from snapshot", action="store", type=str, default="")
     args = parser.parse_args()
 
@@ -229,6 +230,6 @@ if __name__ == "__main__":
     if args.resume:
         pass #TODO
 
-    agent = Agent(net, cuda=args.cuda)
+    agent = Agent(net, cuda=args.cuda, debug=args.debug)
 
     agent.train(game, batch_size=1024, max_steps=2000, save_interval=10, memory_size=102400)
