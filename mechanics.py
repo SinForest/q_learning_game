@@ -87,9 +87,10 @@ class Game:
         self.n_traps   = n_traps
         self.n_nests   = n_nests
         self.pregen    = pregen
+        if easy:
+            self.pregen = False
 
         if pregen:
-
             self.pregen = [Process(target=process_pregen, args=((size, n_traps, n_nests),)) for __ in range(pregen)]
             for p in self.pregen:
                 p.start()
@@ -146,7 +147,7 @@ class Game:
     
     def kill_pregen(self):
         if self.pregen:
-            self.pregen.terminate()
+            [x.terminate() for x in self.pregen]
 
     def get_visual(self, hud=True):
         """

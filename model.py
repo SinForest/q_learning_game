@@ -62,10 +62,10 @@ class NetworkSmall(nn.Module):
     def __init__(self, inp_size, n_actions):
         super(NetworkSmall, self).__init__()
         self.conv = nn.Sequential(nn.Conv2d(3, 16, kernel_size=7, padding=3),
-                                  nn.BatchNorm2d(16),
+                                  # nn.BatchNorm2d(16), #WHY DOES THIS BREAK EVERYTHING?!?
                                   nn.ReLU(),
                                   nn.Conv2d(16, 32, kernel_size=5, padding=2),
-                                  nn.BatchNorm2d(32),
+                                  # nn.BatchNorm2d(32),
                                   nn.ReLU())
 
         tmp = Variable(torch.Tensor(1, 3, inp_size, inp_size))
@@ -74,15 +74,16 @@ class NetworkSmall(nn.Module):
         self.lin = nn.Sequential(nn.Linear(out_size, 32),
                                  nn.ReLU(),
                                  nn.Linear(32, n_actions))
-        """
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.Linear):
+                n = m.weight.size(0) * m.weight.size(1)
+                m.weight.data.normal_(0, math.sqrt(2. / n))
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-        """
 
     def forward(self, x):
         x = self.conv(x)

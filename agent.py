@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from torch import Tensor
 from torch.autograd import Variable
 import numpy as np
@@ -213,7 +214,7 @@ class Agent:
 
 if __name__ == "__main__":
     from mechanics import Game
-    from model import *
+    from model import NetworkSmall
     import argparse
 
     parser = argparse.ArgumentParser(description='Train the agent')
