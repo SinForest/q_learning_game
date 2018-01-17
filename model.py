@@ -105,8 +105,9 @@ if __name__ == "__main__":
     opti = torch.optim.SGD(net.parameters(), lr=0.01)
     targ = Variable(torch.rand(out.size()), requires_grad=False).cuda()
     l_fn = nn.SmoothL1Loss()
-    loss = l_fn(targ, out)
+    loss = l_fn(out, targ)
     loss.backward()
+    opti.zero_grad()
     opti.step()
 
     out = net(tmp)
