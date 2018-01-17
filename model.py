@@ -92,9 +92,11 @@ class NetworkSmall(nn.Module):
         return self.lin(x.view(x.size(0), -1))
 
 if __name__ == "__main__":
-    for net in [NetworkSmall(54, 4)]:
-        tmp = Variable(torch.rand(8, 3, 54, 54))
-        print("output:", net(tmp))
-        for param in net.parameters():
-            print(param)
-        print("-"*200)
+
+    net = NetworkSmall(54, 4)
+    tmp = Variable(torch.rand(8, 3, 54, 54))
+    print("cpu:", net(tmp))
+
+    net = NetworkSmall(54, 4).cuda()
+    tmp = Variable(torch.rand(8, 3, 54, 54)).cuda()
+    print("gpu:", net(tmp))
