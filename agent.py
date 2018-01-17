@@ -53,81 +53,75 @@ class Agent:
 
         for epoch in while_range(n_epochs):
 
-            try:
+            print("### Starting Game-Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
+            steps = 0
 
-                print("### Starting Game-Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
-                steps = 0
+            last_score = game.get_score()
+            S = game.get_visual(hud=False)
 
-                last_score = game.get_score()
-                S = game.get_visual(hud=False)
+            while not game.you_lost:
 
-                while not game.you_lost:
+                # choose action via epsilon greedy:
+                if np.random.rand() < epsilon:
+                    a = np.random.randint(n_actions)
+                else:
+                    a = self.model(self.to_var(S)).max(1)[1].data[0]
 
-                    # choose action via epsilon greedy:
-                    if np.random.rand() < epsilon:
-                        a = np.random.randint(n_actions)
-                    else:
-                        a = self.model(self.to_var(S)).max(1)[1].data[0]
+                # move player, calculate reward
+                moved = game.move_player(a)
+                score = game.get_score()
+                r = score - last_score
+                last_score = score
 
-                    # move player, calculate reward
-                    moved = game.move_player(a)
-                    score = game.get_score()
-                    r = score - last_score
-                    last_score = score
+                # penalize invalid movements
+                if moved == False:
+                    r -= 200
 
-                    # penalize invalid movements
-                    if moved == False:
-                        r -= 200
+                # get next state
+                Sp = game.get_visual(hud=False)
+                self.memory.append((S, a, r, Sp))
+                S  = Sp
 
-                    # get next state
-                    Sp = game.get_visual(hud=False)
-                    self.memory.append((S, a, r, Sp))
-                    S  = Sp
+                # render view for spectating
+                if self.view:
+                    pg.surfarray.blit_array(self.screen, game.get_visual())
+                    pg.display.flip()
 
-                    # render view for spectating
-                    if self.view:
-                        pg.surfarray.blit_array(self.screen, game.get_visual())
-                        pg.display.flip()
+                # train if memory is full
+                if len(self.memory) >= memory_size:
+                    print("\33[32m" + "\n" + "-"*15 + "TRAINING PHASE" + "-"*15)
+                    print(" --> starting training #{}...".format(train_epoch))
+                    loss = self.train_on_memory(gamma, batch_size)
+                    self.memory = []
+                    print(" --> loss: {:.4f}".format(loss))
+                    epsilon -= epsilons[2]
+                    epsilon = max(epsilon, epsilons[1])
+                    train_epoch += 1
 
-                    # train if memory is full
-                    if len(self.memory) >= memory_size:
-                        print("\33[32m" + "\n" + "-"*15 + "TRAINING PHASE" + "-"*15)
-                        print(" --> starting training #{}...".format(train_epoch))
-                        loss = self.train_on_memory(gamma, batch_size)
-                        self.memory = []
-                        print(" --> loss: {:.4f}".format(loss))
-                        epsilon -= epsilons[2]
-                        epsilon = max(epsilon, epsilons[1])
-                        train_epoch += 1
+                    if self.debug:
+                        self.debugger.eval_screens()
 
-                        if self.debug:
-                            self.debugger.eval_screens()
+                    if train_epoch % save_interval == 0 or train_epoch + 1 == n_epochs:
+                        print(" --> starting testing...")
+                        sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
+                        sc = [x for x in sc if x is not None]
+                        print(" --> best: {}, avg: {:.2f}".format(max(sc), sum(sc)/len(sc)))
 
-                        if train_epoch % save_interval == 0 or train_epoch + 1 == n_epochs:
-                            print(" --> starting testing...")
-                            sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
-                            sc = [x for x in sc if x is not None]
-                            print(" --> best: {}, avg: {:.2f}".format(max(sc), sum(sc)/len(sc)))
+                        print("   --> writing model to file...")
+                        self.save(train_epoch, highscore)
+                        highscore = 0
+                    print("-"*(30 + len("TRAINING PHASE")) + "\33[m")
 
-                            print("   --> writing model to file...")
-                            self.save(train_epoch, highscore)
-                            highscore = 0
-                        print("-"*(30 + len("TRAINING PHASE")) + "\33[m")
+                steps += 1
+                if max_steps and steps > max_steps:
+                    game.game_over()
 
-                    steps += 1
-                    if max_steps and steps > max_steps:
-                        game.game_over()
+            #[end] while not game.you_lost
 
-                #[end] while not game.you_lost
-
-                print("  --> end of round, {}score: {}{}\n".format("\33[33m", game.get_score(), "\33[m"))
-                if game.get_score() > highscore:
-                    highscore = game.get_score()
-                game.move_player(None) #restart game
-
-            except KeyboardInterrupt:
-
-                exit(123)
+            print("  --> end of round, {}score: {}{}\n".format("\33[33m", game.get_score(), "\33[m"))
+            if game.get_score() > highscore:
+                highscore = game.get_score()
+            game.move_player(None) #restart game
         
         #[end] for epoch in while_range(n_epochs)
 
