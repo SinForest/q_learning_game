@@ -11,9 +11,11 @@ class Debugger:
                     print("There are identical screens in the debug data.")
     
     def eval_screens(self):
+
         X = self.agent.to_var(self.screens)
-        pred = self.agent.model(X, verbose=True)
+        pred = self.agent.model(X)
         print("debug screens:", pred)
+
         X = self.agent.to_var(np.random.randint(0,256, self.screens.shape))
-        pred = self.agent.model(X, verbose=True)
+        pred = self.agent.model(X)
         print("sanity:", pred)
