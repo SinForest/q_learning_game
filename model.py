@@ -90,10 +90,12 @@ class NetworkSmall(nn.Module):
 if __name__ == "__main__":
 
     net = NetworkSmall(32, 4)
+    net.eval()
     tmp = Variable(torch.rand(8, 3, 32, 32))
     print("cpu:", net(tmp))
 
     net = net.cuda()
+    net.train()
     tmp = tmp.cuda()
     out = net(tmp)
     print("gpu:", out)
