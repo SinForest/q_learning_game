@@ -102,7 +102,7 @@ if __name__ == "__main__":
     out = net(tmp)
     print("gpu:", out)
 
-    opti = torch.optim.SGD(net.parameters(), lr=1)
+    opti = torch.optim.SGD(net.parameters(), lr=10000)
     targ = Variable(torch.rand(out.size())).cuda()
     l_fn = nn.SmoothL1Loss()
     loss = l_fn(out, targ)
