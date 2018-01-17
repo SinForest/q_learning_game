@@ -102,7 +102,7 @@ if __name__ == "__main__":
     out = net(tmp)
     print("gpu:", out)
 
-    opti = torch.optim.SGD(net.parameters(), lr=10000)
+    opti = torch.optim.SGD(net.parameters(), lr=0.00001)
     targ = Variable(torch.rand(out.size())).cuda()
     l_fn = nn.SmoothL1Loss()
     loss = l_fn(out, targ)
@@ -114,3 +114,8 @@ if __name__ == "__main__":
     out = net(tmp)
     print("after train:", out)
 
+    import numpy as np
+    n = np.load("./debug_screens.npy")
+    n = torch.Tensor(n.transpose(0,3,1,2))
+    n = Variable(n / 128 - 1).cuda()
+    print("screens:", net(n))
