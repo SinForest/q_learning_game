@@ -38,7 +38,7 @@ class Agent:
         self.debug = debug
         if debug:
             self.debugger = Debugger("./debug_screens.npy", self)
-            model.eval()
+            model.train()
             self.debugger.eval_screens()
 
 
