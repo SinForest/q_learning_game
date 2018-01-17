@@ -12,7 +12,7 @@ class Debugger:
     
     def eval_screens(self):
         X = self.agent.to_var(self.screens)
-        pred = self.agent.model(X)
+        pred = self.agent.model(X, verbose=True)
         print(pred)
         """
         for i in range(len(pred)):

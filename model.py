@@ -84,8 +84,12 @@ class NetworkSmall(nn.Module):
                 m.bias.data.zero_()
         """
 
-    def forward(self, x):
+    def forward(self, x, verbose=False):
+        if verbose:
+            print("input:", x)
         x = self.conv(x)
+        if verbose:
+            print("conv2:", x)
         return self.lin(x.view(x.size(0), -1))
 
 if __name__ == "__main__":
