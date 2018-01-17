@@ -62,10 +62,10 @@ class NetworkSmall(nn.Module):
     def __init__(self, inp_size, n_actions):
         super(NetworkSmall, self).__init__()
         self.conv = nn.Sequential(nn.Conv2d(3, 16, kernel_size=7, padding=3),
-                                  nn.BatchNorm2d(16),
+                                  # nn.BatchNorm2d(16),
                                   nn.ReLU(),
                                   nn.Conv2d(16, 32, kernel_size=5, padding=2),
-                                  nn.BatchNorm2d(32),
+                                  # nn.BatchNorm2d(32),
                                   nn.ReLU())
 
         tmp = Variable(torch.Tensor(1, 3, inp_size, inp_size))
