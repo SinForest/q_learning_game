@@ -97,6 +97,16 @@ if __name__ == "__main__":
     tmp = Variable(torch.rand(8, 3, 54, 54))
     print("cpu:", net(tmp))
 
-    net = NetworkSmall(54, 4).cuda()
-    tmp = Variable(torch.rand(8, 3, 54, 54)).cuda()
-    print("gpu:", net(tmp))
+    net = net.cuda()
+    tmp = tmp.cuda()
+    out = net(tmp)
+    print("gpu:", out)
+
+    opti = torch.optim.SGD(net.parameters())
+    loss = nn.functional.mse_loss(tmp, out)
+    loss.backward()
+    opti.step()
+
+    out = net(tmp)
+    print("after train:", out)
+
