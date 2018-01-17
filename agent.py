@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor
 from torch.autograd import Variable
+import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 import random
