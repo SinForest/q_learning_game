@@ -108,8 +108,8 @@ if __name__ == "__main__":
     loss = l_fn(out, targ)
     print("loss:", loss)
 
-    loss.backward()
     opti.zero_grad()
+    loss.backward()
     opti.step()
     out = net(tmp)
     print("after train:", out)
