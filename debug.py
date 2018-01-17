@@ -14,7 +14,3 @@ class Debugger:
         X = self.agent.to_var(self.screens)
         pred = self.agent.model(X, verbose=True)
         print(pred)
-        """
-        for i in range(len(pred)):
-            print(pred.data[i])
-        """
