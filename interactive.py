@@ -3,6 +3,7 @@ import numpy as np
 from chrono import Timer
 from mechanics import Game
 import argparse
+import os
 
 parser = argparse.ArgumentParser(description='Start the game')
 parser.add_argument("--size", "-s", help="hight/width of the game field", action="store", type=int, default=50)
@@ -37,3 +38,12 @@ while True:
 
             if event.key == pg.K_c:
                 game.scored(20)
+            
+            if event.key == pg.K_p:
+                fn = "./debug_screens.npy"
+                shot = game.get_visual(hud=False)
+                shot = shot[None,:]
+                if os.path.isfile(fn):
+                    f = np.load(fn)
+                    shot = np.concatenate([f, shot])
+                np.save(fn, shot)

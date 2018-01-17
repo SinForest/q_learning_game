@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from tqdm import trange
+from debug import Debugger
 
 import pygame as pg
 
@@ -22,7 +23,7 @@ def while_range(n):
 
 class Agent:
 
-    def __init__(self, model, cuda=True, view=None):
+    def __init__(self, model, cuda=True, view=None, debug=False):
         self.cuda = cuda
         if cuda:
             self.model = model.cuda()
@@ -33,6 +34,9 @@ class Agent:
         self.view = bool(view)
         if view:
             self.screen = pg.display.set_mode(view)
+        self.debug = debug
+        if debug:
+            self.debugger = Debugger("./debug_screens.npy", self)
 
 
     def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(0.9, 0.1, 0.0005), max_steps=None, save_interval=10, memory_size=25600):
@@ -95,6 +99,9 @@ class Agent:
                         epsilon -= epsilons[2]
                         epsilon = max(epsilon, epsilons[1])
                         train_epoch += 1
+
+                        if self.debug:
+                            self.debugger.eval_screens()
 
                         if train_epoch % save_interval == 0 or train_epoch + 1 == n_epochs:
                             print(" --> starting testing...")
