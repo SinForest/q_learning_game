@@ -102,8 +102,8 @@ if __name__ == "__main__":
     out = net(tmp)
     print("gpu:", out)
 
-    opti = torch.optim.SGD(net.parameters())
-    loss = nn.functional.mse_loss(tmp, out)
+    opti = torch.optim.SGD(net.parameters(), lr=0.01)
+    loss = nn.functional.mse_loss()
     loss.backward()
     opti.step()
 
