@@ -14,6 +14,6 @@ class Debugger:
         X = self.agent.to_var(self.screens)
         pred = self.agent.model(X, verbose=True)
         print("debug screens:", pred)
-        X = self.agent.to_var(np.random.randind(0,256, self.screens.shape))
+        X = self.agent.to_var(np.random.randint(0,256, self.screens.shape))
         pred = self.agent.model(X, verbose=True)
         print("sanity:", pred)
