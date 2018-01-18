@@ -141,7 +141,6 @@ class Agent:
         #[end] for epoch in while_range(n_epochs)
 
     def play(self, game, max_steps):
-        game.game_over()
         game.move_player(None)
         steps = 0
         self.model.eval()
@@ -158,6 +157,7 @@ class Agent:
                 m = game.move_player(aa)
                 a[aa] = -np.inf
             steps += 1
+        game.game_over()
         return game.get_score()
             
 
