@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, LongTensor
 from torch.autograd import Variable
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +8,10 @@ import random
 from tqdm import trange
 
 import pygame as pg
+
+TERM = {'y'  : "\33[33m",
+        'g'  : "\33[32m",
+        'clr': "\33[m"}
 
 def while_range(n):
     """
@@ -21,108 +25,119 @@ def while_range(n):
         yield i
         i += 1
 
+class Memory:
+
+    def __init__(self, size):
+
+        self.size = size
+        self.mem = []
+        self.pos = 0
+    
+    def store(self, S, a, r, Sp):
+        if len(self.mem) < self.size:
+            self.mem.append((S, a, r, Sp))
+        else:
+            self.mem[self.pos] = (S, a, r, Sp)
+            self.pos = (self.pos + 1) % self.size
+    
+    def sample(self, batch_size):
+        return random.sample(self.mem, batch_size)
+
+    def __len__(self):
+        return len(self.mem)
+
 class Agent:
 
-    def __init__(self, model, cuda=True, view=None):
+    def __init__(self, model, cuda=True, view=None, memory_size=10000):
         self.cuda = cuda
         if cuda:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001)
-        self.memory = []
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.0005)
+        self.memory = Memory(memory_size)
         self.view = bool(view)
         if view:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(0.9, 0.1, 0.0005), max_steps=None, save_interval=10, memory_size=25600):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(0.9, 0.1, 0.0005), max_steps=None, save_interval=10):
 
+        #TODO: handle epsilon
 
-        # TODO: setup game
         n_actions = game.n_actions()
-
         self.model.eval()
 
         epsilon = epsilons[0]
-        train_epoch = 0
-        highscore = float("-inf")
 
         for epoch in while_range(n_epochs):
+            print("### Starting Game-Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
 
-            try:
+            last_score = game.get_score()
+            S = game.get_visual(hud=False)
+            loss = 0
 
-                print("### Starting Game-Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
-                steps = 0
+            #while not game.you_lost:
+            for steps in trange(max_steps, ncols=50):
 
-                last_score = game.get_score()
-                S = game.get_visual(hud=False)
+                # stop epoch if game is lost
+                if game.you_lost:
+                    break
 
-                while not game.you_lost:
+                # choose action via epsilon greedy:
+                if np.random.rand() < epsilon:
+                    a = np.random.randint(n_actions)
+                else:
+                    a = self.model(self.to_var(S)).max(1)[1].data[0]
 
-                    # choose action via epsilon greedy:
-                    if np.random.rand() < epsilon:
-                        a = np.random.randint(n_actions)
-                    else:
-                        a = self.model(self.to_var(S)).max(1)[1].data[0]
+                # move player, calculate reward
+                moved = game.move_player(a)
+                score = game.get_score()
+                r = score - last_score
+                last_score = score
 
-                    # move player, calculate reward
-                    moved = game.move_player(a)
-                    score = game.get_score()
-                    r = score - last_score
-                    last_score = score
+                # penalize invalid movements
+                if moved == False:
+                    r -= 200
 
-                    # penalize invalid movements
-                    if moved == False:
-                        r -= 200
+                # get next state, save transition
+                Sp = game.get_visual(hud=False)
+                self.memory.store(S, a, r, Sp)
+                S  = Sp
 
-                    # get next state
-                    Sp = game.get_visual(hud=False)
-                    self.memory.append((S, a, r, Sp))
-                    S  = Sp
+                # render view for spectating
+                if self.view:
+                    pg.surfarray.blit_array(self.screen, game.get_visual())
+                    pg.display.flip()
 
-                    # render view for spectating
-                    if self.view:
-                        pg.surfarray.blit_array(self.screen, game.get_visual())
-                        pg.display.flip()
+                # train if memory is sufficiently full
+                if len(self.memory) >= batch_size:
+                    loss += self.train_on_memory(gamma, batch_size)
 
-                    # train if memory is full
-                    if len(self.memory) >= memory_size:
-                        print("\33[32m" + "\n" + "-"*15 + "TRAINING PHASE" + "-"*15)
-                        print(" --> starting training #{}...".format(train_epoch))
-                        loss = self.train_on_memory(gamma, batch_size)
-                        self.memory = []
-                        print(" --> loss: {:.4f}".format(loss))
-                        epsilon -= epsilons[2]
-                        epsilon = max(epsilon, epsilons[1])
-                        train_epoch += 1
+            else: # end game if for loop exits through max steps reached
+                game.game_over()
+                steps += 1
+            #[end] for steps in trange(max_steps, ncols=50)
 
-                        if train_epoch % save_interval == 0 or train_epoch + 1 == n_epochs:
-                            print(" --> starting testing...")
-                            sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
-                            sc = [x for x in sc if x is not None]
-                            print(" --> best: {}, avg: {:.2f}".format(max(sc), sum(sc)/len(sc)))
+            if steps > batch_size:
+                loss /= (steps - batch_size)
+            else:
+                loss = None
 
-                            print("   --> writing model to file...")
-                            self.save(train_epoch, highscore)
-                            highscore = 0
-                        print("-"*(30 + len("TRAINING PHASE")) + "\33[m")
+            print("  --> end of round, {}score: {}{}, {}loss:{:.2f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
+                                                                                TERM['g'], loss, TERM['clr'],))
 
-                    steps += 1
-                    if max_steps and steps > max_steps:
-                        game.game_over()
+            if epoch % save_interval == 0 or epoch + 1 == n_epochs:
+                print(" --> starting testing...")
+                sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
+                sc = [x for x in sc if x is not None]
+                print(" --> best: {}, avg: {:.2f}".format(max(sc), sum(sc)/len(sc)))
 
-                #[end] while not game.you_lost
+                print("   --> writing model to file...")
+                self.save(epoch)
 
-                print("  --> end of round, {}score: {}{}\n".format("\33[33m", game.get_score(), "\33[m"))
-                if game.get_score() > highscore:
-                    highscore = game.get_score()
-                game.move_player(None) #restart game
+            game.move_player(None) #restart game
 
-            except KeyboardInterrupt:
-
-                exit(123)
-        
         #[end] for epoch in while_range(n_epochs)
 
     def play(self, game, max_steps):
@@ -132,13 +147,10 @@ class Agent:
         self.model.eval()
         while steps < max_steps and not game.you_lost:
             S = game.get_visual(hud=False)
-            a = self.model(self.to_var(S))#.max(1)[1].data[0]
-            if self.cuda:
-                a = a.cpu()
-            a = a.data.numpy()[0]
+            a = self.model(self.to_var(S)).data[0] # Tensor dim=(4)
             m = False
             while not m:
-                aa = np.argmax(a)
+                aa = a.max(0)[1][0] # argmax as scalar
                 if a.max() == -np.inf:
                     #this should never happen!
                     print("     no valid moves...")
@@ -146,48 +158,32 @@ class Agent:
                 m = game.move_player(aa)
                 a[aa] = -np.inf
             steps += 1
-        
         return game.get_score()
             
 
     def train_on_memory(self, gamma, batch_size):
 
-        random.shuffle(self.memory)
-        n_iter = int(np.ceil(len(self.memory) / batch_size))
-        losses = 0
-        omit = 0
-        loss_fn = nn.SmoothL1Loss(size_average=False)
+        (S, a, r, Sp) = zip(*(self.memory.sample(batch_size)))
 
-        for i in trange(n_iter, ncols=44):
-            (S, a, r, Sp) = zip(*(self.memory[i*batch_size:(i+1)*batch_size]))
+        S  = self.to_var(np.stack(S))
+        a  = Variable(LongTensor(a).cuda() if self.cuda else LongTensor(a)).view(-1, 1)
+        r  = Tensor(r).cuda() if self.cuda else Tensor(r)
+        Sp = self.to_var(np.stack(Sp))
 
-            Sp = self.to_var(np.stack(Sp))
-
-            self.model.eval()
-            Q_max = self.model(Sp).data.max(1)[0] # Tensor containing maximum Q-value per S'
-            r = Tensor(np.array(r))
-            if self.cuda:
-                r = r.cuda()
-            target = r + Q_max * gamma
-
-            S = self.to_var(np.stack(S))
-            self.model.train()
-            self.opti.zero_grad()
-            pred = self.model(S)
-
-            n_actions = pred.size(1)
-            a = Tensor(np.eye(n_actions)[list(a)]) #one-hot
-            if self.cuda:
-                a = a.cuda()
-            target = Variable(target[:, None] * a + pred.data * (1-a))
-
-            loss = loss_fn(pred, target)
-
-            loss.backward()
-            self.opti.step()
-            losses += loss.data[0]
         self.model.eval()
-        return losses / (len(self.memory) - omit)
+        Q_max = self.model(Sp).data.max(1)[0] # Variable containing maximum Q-value per S'
+        target = Variable(r + Q_max * gamma)
+
+        self.model.train()
+        self.opti.zero_grad()
+        pred = self.model(S).gather(1, a)
+
+        loss = nn.functional.smooth_l1_loss(pred, target)
+        loss.backward()
+        self.opti.step()
+
+        self.model.eval()
+        return loss.data[0]
 
     def to_var(self, x):
         """
@@ -206,7 +202,7 @@ class Agent:
         else:
             return x
     
-    def save(self, epoch, highscore):
+    def save(self, epoch):
         d = {'epoch'     : epoch,
              'state_dict': self.model.state_dict(),
              'optimizer' : self.opti.state_dict()}
@@ -229,6 +225,6 @@ if __name__ == "__main__":
     if args.resume:
         pass #TODO
 
-    agent = Agent(net, cuda=args.cuda)
+    agent = Agent(net, cuda=args.cuda, memory_size=10000)
 
-    agent.train(game, batch_size=1024, max_steps=2000, save_interval=10, memory_size=102400)
+    agent.train(game, batch_size=128, max_steps=2000, save_interval=10)

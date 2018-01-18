@@ -90,7 +90,7 @@ class Game:
         if easy:
             self.pregen = False
 
-        if pregen:
+        if self.pregen:
             self.pregen = [Process(target=process_pregen, args=((size, n_traps, n_nests),)) for __ in range(pregen)]
             for p in self.pregen:
                 p.start()
