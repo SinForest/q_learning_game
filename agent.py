@@ -54,23 +54,25 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.0001)
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.00005)
         self.memory = Memory(memory_size)
         self.view = bool(view)
         if view:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.995, epsilons=(0.9, 0.1, 0.0005), max_steps=None, save_interval=10):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.991, epsilons=(0.9, 0.05, 1000), max_steps=None, save_interval=10):
 
         #TODO: handle epsilon
 
         n_actions = game.n_actions()
         self.model.eval()
 
-        epsilon = epsilons[0]
+        eps = lambda s:epsilons[0] + (epsilons[1] - epsilons[0]) * np.exp(-s / epsilons[2])
 
         for epoch in while_range(n_epochs):
+
+            epsilon = eps(epoch)
             print("### Starting Game-Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
 
             last_score = game.get_score()
