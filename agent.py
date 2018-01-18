@@ -54,7 +54,7 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.0005)
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.0001)
         self.memory = Memory(memory_size)
         self.view = bool(view)
         if view:
@@ -76,6 +76,7 @@ class Agent:
             last_score = game.get_score()
             S = game.get_visual(hud=False)
             loss = 0
+            n_lo = 0
 
             #while not game.you_lost:
             for steps in trange(max_steps, ncols=50):
@@ -113,16 +114,12 @@ class Agent:
                 # train if memory is sufficiently full
                 if len(self.memory) >= batch_size:
                     loss += self.train_on_memory(gamma, batch_size)
+                    n_lo += 1
 
-            else: # end game if for loop exits through max steps reached
-                game.game_over()
-                steps += 1
             #[end] for steps in trange(max_steps, ncols=50)
+            game.game_over()
 
-            if steps > batch_size:
-                loss /= (steps - batch_size)
-            else:
-                loss = None
+            loss = (loss / n_lo if n_lo > 0 else None)
 
             print("  --> end of round, {}score: {}{}, {}loss:{:.2f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
                                                                                 TERM['g'], loss, TERM['clr'],))
@@ -227,4 +224,4 @@ if __name__ == "__main__":
 
     agent = Agent(net, cuda=args.cuda, memory_size=10000)
 
-    agent.train(game, batch_size=128, max_steps=2000, save_interval=10)
+    agent.train(game, batch_size=128, max_steps=1000, save_interval=10)
