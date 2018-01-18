@@ -202,6 +202,8 @@ class Agent:
             return x
     
     def save(self, epoch):
+        #TODO: save meta data to recreate model (inp_size, n_actions, network type)
+        #      maybe also store Game information (which would include some model meta data)
         d = {'epoch'     : epoch,
              'state_dict': self.model.state_dict(),
              'optimizer' : self.opti.state_dict()}
