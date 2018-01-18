@@ -68,7 +68,7 @@ class Agent:
         n_actions = game.n_actions()
         self.model.eval()
 
-        eps = lambda s:epsilons[0] + (epsilons[1] - epsilons[0]) * np.exp(-s / epsilons[2])
+        eps = lambda s:epsilons[1] + (epsilons[0] - epsilons[1]) * np.exp(-s / epsilons[2])
 
         for epoch in while_range(n_epochs):
 
