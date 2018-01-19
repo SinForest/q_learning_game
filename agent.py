@@ -66,7 +66,7 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.9, epsilons=(0.9, 0.05, 100), max_steps=None, save_interval=10, move_pen=1):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.8, epsilons=(0.9, 0.05, 100), max_steps=None, save_interval=10, move_pen=1):
 
         #TODO: handle epsilon
 
