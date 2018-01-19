@@ -59,7 +59,7 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.00005)
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.00001)
         self.memory = Memory(memory_size)
         self.view = bool(view)
         if view:
@@ -128,7 +128,7 @@ class Agent:
 
             loss = (loss / n_lo if n_lo > 0 else None)
 
-            print("  --> end of round, {}score: {}{}, {}loss:{:.2f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
+            print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
                                                                                 TERM['g'], loss, TERM['clr'],))
 
             if epoch % save_interval == 0 or epoch + 1 == n_epochs:
