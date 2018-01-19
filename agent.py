@@ -11,6 +11,7 @@ import pygame as pg
 
 TERM = {'y'  : "\33[33m",
         'g'  : "\33[32m",
+        'c'  : "\33[36m",
         'clr': "\33[m"}
 
 def while_range(n):
@@ -43,6 +44,10 @@ class Memory:
     def sample(self, batch_size):
         return random.sample(self.mem, batch_size)
 
+    def pickle(self):
+        import pickle
+        pickle.dump(self.mem, open("./memory.p", "wb"))
+
     def __len__(self):
         return len(self.mem)
 
@@ -61,7 +66,7 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.991, epsilons=(0.9, 0.05, 1000), max_steps=None, save_interval=10, move_pen=1):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.9, epsilons=(0.9, 0.05, 100), max_steps=None, save_interval=10, move_pen=1):
 
         #TODO: handle epsilon
 
@@ -101,7 +106,7 @@ class Agent:
 
                 # penalize invalid movements
                 if moved == False:
-                    r -= 200
+                    r -= 10
 
                 # get next state, save transition
                 Sp = game.get_visual(hud=False)
@@ -127,13 +132,14 @@ class Agent:
                                                                                 TERM['g'], loss, TERM['clr'],))
 
             if epoch % save_interval == 0 or epoch + 1 == n_epochs:
-                print(" --> starting testing...")
+                print(TERM['c'] + " --> starting testing...")
                 sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
                 sc = [x for x in sc if x is not None]
                 print(" --> best: {}, avg: {:.2f}".format(max(sc), sum(sc)/len(sc)))
 
-                print("   --> writing model to file...")
+                print("   --> writing model to file...\n" + TERM['clr'])
                 self.save(epoch)
+                # self.memory.pickle()
 
             game.move_player(None) #restart game
 
@@ -177,7 +183,7 @@ class Agent:
         self.opti.zero_grad()
         pred = self.model(S).gather(1, a)
 
-        loss = nn.functional.smooth_l1_loss(pred, target)
+        loss = nn.functional.l1_loss(pred, target)
         loss.backward()
         self.opti.step()
 
@@ -211,7 +217,7 @@ class Agent:
 
 if __name__ == "__main__":
     from mechanics import Game
-    from model import NetworkSmall
+    from model import NetworkSmall2
     import argparse
 
     parser = argparse.ArgumentParser(description='Train the agent')
@@ -221,7 +227,7 @@ if __name__ == "__main__":
 
     game  = Game(easy=True, size=10)
     inp   = game.get_visual(hud=False).shape[0]
-    net   = NetworkSmall(inp, 4)
+    net   = NetworkSmall2(inp, 4)
 
     if args.resume:
         pass #TODO

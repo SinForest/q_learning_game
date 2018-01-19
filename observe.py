@@ -1,4 +1,4 @@
-from model import NetworkSmall
+from model import NetworkSmall2
 from mechanics import Game
 from agent import Agent
 
@@ -12,7 +12,7 @@ DIR = ["↑", "↓", "←", "→"]
 def resume(fp):
     if os.path.isfile(fp):
         cp = torch.load(fp, map_location={'cuda:0': 'cpu'})
-        model = NetworkSmall(32, 4)
+        model = NetworkSmall2(14, 4)
         model.load_state_dict(cp['state_dict'])
         return model
     else:
@@ -23,7 +23,7 @@ def print_q_values(a, aa):
     print("  " + " ".join(["{}:{}".format(DIR[x], s(x)) for x in range(len(a))]), end="\r")
 
 if __name__ == "__main__":
-    game  = Game(easy=True, size=28)
+    game  = Game(easy=True, size=10)
     model = resume(sys.argv[1])
     model.eval()
     ag = Agent(model, cuda=False) # for to_var
