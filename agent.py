@@ -61,7 +61,7 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.991, epsilons=(0.9, 0.05, 1000), max_steps=None, save_interval=10):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.991, epsilons=(0.9, 0.05, 1000), max_steps=None, save_interval=10, move_pen=1):
 
         #TODO: handle epsilon
 
@@ -96,7 +96,7 @@ class Agent:
                 # move player, calculate reward
                 moved = game.move_player(a)
                 score = game.get_score()
-                r = score - last_score
+                r = score - last_score - move_pen
                 last_score = score
 
                 # penalize invalid movements
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", "-r", help="resume from snapshot", action="store", type=str, default="")
     args = parser.parse_args()
 
-    game  = Game(easy=True, size=28)
+    game  = Game(easy=True, size=10)
     inp   = game.get_visual(hud=False).shape[0]
     net   = NetworkSmall(inp, 4)
 
