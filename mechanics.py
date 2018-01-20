@@ -90,7 +90,7 @@ class Game:
         if easy:
             self.pregen = False
 
-        if pregen:
+        if self.pregen:
             self.pregen = [Process(target=process_pregen, args=((size, n_traps, n_nests),)) for __ in range(pregen)]
             for p in self.pregen:
                 p.start()
@@ -132,7 +132,7 @@ class Game:
             self.visualize_nest(ne)
         
         self.coins = []
-        for i in range(10):
+        for i in range(1 if self.easy else 10):
             self.new_coin()
     
     def visualize_nest(self, ne):
@@ -182,35 +182,37 @@ class Game:
             vis = np.pad(vis, ((1, 1), (1, 1), (0, 0)), 'constant')
             vis = vis.repeat(self.stretch, 0).repeat(self.stretch, 1)
             
+            fs = self.size // 2 + 3 
+
             # right side of HUD
-            text = char_to_pixels("Score: {}".format(self.score), fontsize=28).T
+            text = char_to_pixels("Score: {}".format(self.score), fontsize=fs).T
             x, y = text.shape
             pad = 3*self.stretch
             vis[-x-pad:-pad, pad:pad+y][text] = [222, 222, 222]
 
-            text = char_to_pixels("Level: {}".format(self.level), fontsize=28).T
+            text = char_to_pixels("Level: {}".format(self.level), fontsize=fs).T
             x2, y2 = text.shape
             pad = 3*self.stretch
             vis[-x2-pad:-pad, pad+8+y:pad+8+y+y2][text] = [222, 222, 222]
 
             # left side of HUD
-            text = char_to_pixels("Lives: {}".format("♥"*self.lives), fontsize=28).T
+            text = char_to_pixels("Lives: {}".format("♥"*self.lives), fontsize=fs).T
             x, y = text.shape
             pad = 3*self.stretch
             vis[pad:x+pad, pad:pad+y][text] = [222, 222, 222]
 
-            text = char_to_pixels("Chance: {}%".format(self.chance), fontsize=28).T
+            text = char_to_pixels("Chance: {}%".format(self.chance), fontsize=fs).T
             x2, y2 = text.shape
             pad = 3*self.stretch
             vis[pad:x2+pad, pad+8+y:pad+8+y+y2][text] = [222, 222, 222]
             
             # bottom side of HUD
             if self.cooldown > 0:
-                text  = char_to_pixels("|" * self.cooldown, fontsize=28).T
+                text  = char_to_pixels("|" * self.cooldown, fontsize=fs).T
             x, y = text.shape
             pad = 2*self.stretch
             if self.START_MAXDOWN > self.maxdown:
-                text2 = char_to_pixels("|" * (self.START_MAXDOWN - self.maxdown), fontsize=28).T
+                text2 = char_to_pixels("|" * (self.START_MAXDOWN - self.maxdown), fontsize=fs).T
                 x2, y2 = text2.shape
                 vis[pad:x2+pad, -pad-y2:-pad][text2] = [222, 22, 22]
             else:
