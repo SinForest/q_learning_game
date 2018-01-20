@@ -5,7 +5,7 @@ from torch.autograd import Variable
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-from tqdm import trange
+from tqdm import trange, tqdm
 
 import pygame as pg
 
@@ -59,14 +59,14 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
-        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.00001)
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001) #lr=0.00001)
         self.memory = Memory(memory_size)
         self.view = bool(view)
         if view:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.8, epsilons=(0.9, 0.05, 100), max_steps=None, save_interval=10, move_pen=1):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.8, epsilons=(0.9, 0.05, 200), max_steps=None, save_interval=10, move_pen=1):
 
         #TODO: handle epsilon
 
@@ -125,9 +125,8 @@ class Agent:
 
             #[end] for steps in trange(max_steps, ncols=50)
             game.game_over()
-
-            loss = (loss / n_lo if n_lo > 0 else None)
-
+            loss = (loss / n_lo if n_lo > 0 else -1)
+            
             print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
                                                                                 TERM['g'], loss, TERM['clr'],))
 
@@ -201,7 +200,7 @@ class Agent:
             x = Tensor(x.transpose(0,3,1,2))
         else:
             raise RuntimeError("wrong input dimensions")
-        x = Variable(x / 128 - 1)
+        x = Variable(x / 127.5 - 1)
         if self.cuda:
             return x.cuda()
         else:
