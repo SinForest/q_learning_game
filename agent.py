@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from tqdm import trange, tqdm
+from copy import deepcopy
 
 import pygame as pg
 
@@ -28,7 +29,7 @@ def while_range(n):
 
 class Memory:
 
-    def __init__(self, size, eps=1e-5, alpha=0.5):
+    def __init__(self, size, eps=1e-5, alpha=0.6):
 
         self.size  = size
         self.mem   = []
@@ -66,6 +67,7 @@ class Agent:
             self.model = model.cuda()
         else:
             self.model = model
+        self.target_model = deepcopy(model)
         self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001) #lr=0.00001)
         self.memory = Memory(memory_size)
         self.view = bool(view)
@@ -73,10 +75,9 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.8, epsilons=(0.9, 0.05, 200), max_steps=None, save_interval=10, move_pen=1):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.9, epsilons=(0.9, 0.05, 200), max_steps=None, save_interval=10, move_pen=1, clone_age=9000):
 
-        #TODO: handle epsilon
-
+        age = 0
         n_actions = game.n_actions()
         self.model.eval()
 
@@ -137,6 +138,14 @@ class Agent:
                 if len(self.memory) >= batch_size:
                     loss += self.train_on_memory(gamma, batch_size)
                     n_lo += 1
+                
+                # increase age for cloning target network
+                age += 1
+                if age >= clone_age:
+                    tqdm.write("Cloning target network...")
+                    del self.target_model
+                    self.target_model = deepcopy(self.model)
+                    age = 0
 
             #[end] for steps in trange(max_steps, ncols=50)
             game.game_over()
@@ -190,7 +199,7 @@ class Agent:
         Sp = self.to_var(np.stack(Sp))
 
         self.model.eval()
-        Q_max = self.model(Sp).data.max(1)[0] # Variable containing maximum Q-value per S'
+        Q_max = self.target_model(Sp).data.max(1)[0] # Variable containing maximum Q-value per S'
         target = Variable(r + Q_max * gamma)
 
         self.model.train()
@@ -199,6 +208,8 @@ class Agent:
 
         loss = nn.functional.l1_loss(pred, target)
         loss.backward()
+        for param in self.model.parameters():
+            param.grad.data.clamp_(-1, 1)
         self.opti.step()
 
         self.model.eval()
@@ -239,7 +250,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", "-r", help="resume from snapshot", action="store", type=str, default="")
     args = parser.parse_args()
 
-    game  = Game(easy=True, size=10)
+    game  = Game(easy=True, size=26)
     inp   = game.get_visual(hud=False).shape[0]
     net   = NetworkSmallDuell(inp, 4)
 

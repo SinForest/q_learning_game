@@ -9,23 +9,21 @@ import operator
 class NetworkSmallDuell(nn.Module):
     
     def __init__(self, inp_size, n_actions):
-        super(NetworkSmallDuell, self).__init__()
-        self.conv = nn.Sequential(nn.Conv2d(3, 16, kernel_size=3, padding=1),
-                                  nn.ReLU(),
+        super(NetworkSmallDuell, self).__init__() # designed for input=(30x30)
+        self.conv = nn.Sequential(nn.Conv2d( 3, 16, kernel_size=5, stride=3, padding=1),
+                                  nn.PReLU(), # output = (10x10)
                                   nn.Conv2d(16, 32, kernel_size=3, padding=1),
-                                  nn.ReLU(),
+                                  nn.PReLU(),
                                   nn.Conv2d(32, 32, kernel_size=3, padding=1),
-                                  nn.ReLU(),
-                                  nn.Conv2d(32, 32, kernel_size=3, padding=1),
-                                  nn.ReLU())
+                                  nn.PReLU())
 
         tmp = Variable(torch.Tensor(1, 3, inp_size, inp_size))
         out_size = reduce(operator.mul, self.conv(tmp).size())
 
-        self.lin = nn.Sequential(nn.Linear(out_size, 256),
-                                 nn.ReLU(),
-                                 nn.Linear(256, 256),
-                                 nn.ReLU())
+        self.lin = nn.Sequential(nn.Linear(out_size, 128),
+                                 nn.PReLU(),
+                                 nn.Linear(128, 256),
+                                 nn.PReLU())
         self.adv_val = nn.Linear(256, n_actions + 1) # [0] == val
 
         for m in self.modules():
