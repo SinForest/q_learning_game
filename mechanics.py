@@ -132,7 +132,7 @@ class Game:
             self.visualize_nest(ne)
         
         self.coins = []
-        for i in range(1 if self.easy else 10):
+        for _ in range(10):
             self.new_coin()
     
     def visualize_nest(self, ne):
