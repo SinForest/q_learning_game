@@ -28,21 +28,28 @@ def while_range(n):
 
 class Memory:
 
-    def __init__(self, size):
+    def __init__(self, size, eps=1e-5, alpha=0.5):
 
-        self.size = size
-        self.mem = []
-        self.pos = 0
+        self.size  = size
+        self.mem   = []
+        self.pri   = []
+        self.pos   = 0
+        self.eps   = eps
+        self.alpha = alpha
     
-    def store(self, S, a, r, Sp):
+    def store(self, S, a, r, Sp, err=0):
         if len(self.mem) < self.size:
             self.mem.append((S, a, r, Sp))
+            self.pri.append((err + self.eps) ** self.alpha)
         else:
             self.mem[self.pos] = (S, a, r, Sp)
             self.pos = (self.pos + 1) % self.size
     
     def sample(self, batch_size):
-        return random.sample(self.mem, batch_size)
+        p   = np.array(self.pri)
+        p  /= p.sum()
+        idx =  np.random.choice(len(self.mem), size=batch_size, p=p, replace=False)
+        return np.array(self.mem)[idx]
 
     def pickle(self):
         import pickle
@@ -53,7 +60,7 @@ class Memory:
 
 class Agent:
 
-    def __init__(self, model, cuda=True, view=None, memory_size=10000):
+    def __init__(self, model, cuda=True, view=None, memory_size=1000):
         self.cuda = cuda
         if cuda:
             self.model = model.cuda()
@@ -93,10 +100,11 @@ class Agent:
                     break
 
                 # choose action via epsilon greedy:
+                Q_val = self.model(self.to_var(S))
                 if np.random.rand() < epsilon:
                     a = np.random.randint(n_actions)
                 else:
-                    a = self.model(self.to_var(S)).max(1)[1].data[0]
+                    a = Q_val.max(1)[1].data[0]
 
                 # move player, calculate reward
                 moved = game.move_player(a)
@@ -107,10 +115,17 @@ class Agent:
                 # penalize invalid movements
                 if moved == False:
                     r -= 10
-
-                # get next state, save transition
+                
+                # get next state
                 Sp = game.get_visual(hud=False)
-                self.memory.store(S, a, r, Sp)
+
+                # calc error for priority
+                Q_val = Q_val.max(1)[0].data[0]
+                Q_max = self.model(self.to_var(Sp)).max(1)[0].data[0]
+                err   = np.abs(Q_val - (r + gamma * Q_max))
+
+                # save transition
+                self.memory.store(S, a, r, Sp, err)
                 S  = Sp
 
                 # render view for spectating
@@ -231,6 +246,6 @@ if __name__ == "__main__":
     if args.resume:
         pass #TODO
 
-    agent = Agent(net, cuda=args.cuda, memory_size=10000)
+    agent = Agent(net, cuda=args.cuda, memory_size=5000)
 
     agent.train(game, batch_size=128, max_steps=1000, save_interval=10)
