@@ -231,7 +231,7 @@ class Agent:
 
 if __name__ == "__main__":
     from mechanics import Game
-    from model import NetworkSmall2
+    from model import NetworkSmallDuell
     import argparse
 
     parser = argparse.ArgumentParser(description='Train the agent')
@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
     game  = Game(easy=True, size=10)
     inp   = game.get_visual(hud=False).shape[0]
-    net   = NetworkSmall2(inp, 4)
+    net   = NetworkSmallDuell(inp, 4)
 
     if args.resume:
         pass #TODO
