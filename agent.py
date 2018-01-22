@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 import random
 from tqdm import trange, tqdm
 from copy import deepcopy
-
-import pygame as pg
+import os
 
 TERM = {'y'  : "\33[33m",
         'g'  : "\33[32m",
@@ -61,7 +60,7 @@ class Memory:
 
 class Agent:
 
-    def __init__(self, model, cuda=True, view=None, memory_size=1000):
+    def __init__(self, model, cuda=True, view=None, memory_size=1000, opti_state=None):
         self.cuda = cuda
         if cuda:
             self.model = model.cuda()
@@ -69,18 +68,23 @@ class Agent:
             self.model = model
         self.target_model = deepcopy(model)
         self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001)
+        if opti_state:
+            self.opti.load_state_dict(opti_state)
         self.memory = Memory(memory_size)
         self.view = bool(view)
         if view:
+            import pygame as pg
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=(0.9, 0.05, 900), max_steps=None, save_interval=10, move_pen=1, clone_age=9000, observe=0):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=1, clone_age=9000, observe=0):
 
         age = 0
         n_actions = game.n_actions()
         self.model.eval()
 
+        if epsilons is None:
+            epsilons = (0.9, 0.05, 900)
         eps = lambda s:epsilons[1] + (epsilons[0] - epsilons[1]) * np.exp(-s / epsilons[2])
 
         for epoch in while_range(n_epochs):
@@ -248,15 +252,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train the agent')
     parser.add_argument("--cuda", "-c", help="use CUDA", action="store_true")
     parser.add_argument("--resume", "-r", help="resume from snapshot", action="store", type=str, default="")
+    parser.add_argument("--epsilon", "-e", help="fixed epsilon", action="store", type=float, default=None)
     args = parser.parse_args()
 
-    game  = Game(easy=True, size=28)
-    inp   = game.get_visual(hud=False).shape[0]
-    net   = NetworkSmallDuell(inp, 4)
+    game   = Game(easy=True, size=28)
+    inp    = game.get_visual(hud=False).shape[0]
+    net    = NetworkSmallDuell(inp, 4)
+    ostate = None
 
     if args.resume:
-        pass #TODO
+        if os.path.isfile(args.resume):
+            cp = torch.load(args.resume, map_location={'cuda:0': 'cpu'})
+            net.load_state_dict(cp['state_dict'])
+            ostate = cp['optimizer']
+        else:
+            raise FileNotFoundError("File {} not found.".format(args.resume))
+    
+    if args.epsilon is not None:
+        args.epsilon = (args.epsilon, args.epsilon, 1)
 
     agent = Agent(net, cuda=args.cuda, memory_size=50000)
 
-    agent.train(game, batch_size=128, max_steps=2000, save_interval=5, observe=10000)
+    agent.train(game, batch_size=128, max_steps=2000, save_interval=5, observe=10000, epsilons=args.epsilon)
