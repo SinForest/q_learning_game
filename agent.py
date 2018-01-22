@@ -29,7 +29,7 @@ def while_range(n):
 
 class Memory:
 
-    def __init__(self, size, eps=1e-5, alpha=0.6):
+    def __init__(self, size, eps=1e-5, alpha=1):
 
         self.size  = size
         self.mem   = []
@@ -68,14 +68,14 @@ class Agent:
         else:
             self.model = model
         self.target_model = deepcopy(model)
-        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001) #lr=0.00001)
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001)
         self.memory = Memory(memory_size)
         self.view = bool(view)
         if view:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=(0.9, 0.05, 600), max_steps=None, save_interval=10, move_pen=1, clone_age=9000):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=(0.9, 0.05, 900), max_steps=None, save_interval=10, move_pen=1, clone_age=9000, observe=0):
 
         age = 0
         n_actions = game.n_actions()
@@ -135,7 +135,7 @@ class Agent:
                     pg.display.flip()
 
                 # train if memory is sufficiently full
-                if len(self.memory) >= batch_size:
+                if len(self.memory) >= max(batch_size, observe):
                     loss += self.train_on_memory(gamma, batch_size)
                     n_lo += 1
                 
@@ -154,7 +154,7 @@ class Agent:
             print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
                                                                                 TERM['g'], loss, TERM['clr'],))
 
-            if epoch % save_interval == 0 or epoch + 1 == n_epochs:
+            if (epoch % save_interval == 0 and len(self.memory) >= observe) or epoch + 1 == n_epochs:
                 print(TERM['c'] + " --> starting testing...")
                 sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
                 sc = [x for x in sc if x is not None]
@@ -250,13 +250,13 @@ if __name__ == "__main__":
     parser.add_argument("--resume", "-r", help="resume from snapshot", action="store", type=str, default="")
     args = parser.parse_args()
 
-    game  = Game(easy=True, size=26)
+    game  = Game(easy=True, size=28)
     inp   = game.get_visual(hud=False).shape[0]
     net   = NetworkSmallDuell(inp, 4)
 
     if args.resume:
         pass #TODO
 
-    agent = Agent(net, cuda=args.cuda, memory_size=5000)
+    agent = Agent(net, cuda=args.cuda, memory_size=50000)
 
-    agent.train(game, batch_size=128, max_steps=1000, save_interval=10)
+    agent.train(game, batch_size=128, max_steps=2000, save_interval=5, observe=10000)

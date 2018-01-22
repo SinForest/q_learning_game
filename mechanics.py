@@ -17,9 +17,6 @@ GAME_DEBUG = True
 def process_pregen(args, interval=0, max_lvls=300):
     while(True):
         lvl_dir = "levels/{}_{}_{}/".format(*args)
-        if not os.path.exists(lvl_dir):
-            os.makedirs(lvl_dir)
-        
         if len([name for name in os.listdir(lvl_dir) if os.path.isfile(lvl_dir + name)]) < max_lvls:
             pregen_level(*args)
         
@@ -27,9 +24,7 @@ def process_pregen(args, interval=0, max_lvls=300):
 
 def pregen_level(size, n_traps=None, n_nests=None):
     lvl_dir = "levels/{}_{}_{}/".format(size, n_traps, n_nests)
-    if not os.path.exists(lvl_dir):
-        os.makedirs(lvl_dir)
-    
+
     world = generate_world(size, n_traps, n_nests)
 
     name = hex(hash(world[0].tostring()))[3:11] + ".p"
@@ -91,6 +86,9 @@ class Game:
             self.pregen = False
 
         if self.pregen:
+            lvl_dir = "levels/{}_{}_{}/".format(size, n_traps, n_nests)
+            if not os.path.exists(lvl_dir):
+                os.makedirs(lvl_dir)
             self.pregen = [Process(target=process_pregen, args=((size, n_traps, n_nests),)) for __ in range(pregen)]
             for p in self.pregen:
                 p.start()
