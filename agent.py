@@ -14,14 +14,14 @@ TERM = {'y'  : "\33[33m",
         'c'  : "\33[36m",
         'clr': "\33[m"}
 
-def while_range(n):
+def while_range(n, start=0):
     """
     like range(n), if n scalar
     like while(True), in f None
     """
     if n is None:
         n = float("inf")
-    i = 0
+    i = start
     while i < n:
         yield i
         i += 1
@@ -60,14 +60,14 @@ class Memory:
 
 class Agent:
 
-    def __init__(self, model, cuda=True, view=None, memory_size=1000, opti_state=None):
+    def __init__(self, model, cuda=True, view=None, memory_size=1000, opti_state=None, lr=None):
         self.cuda = cuda
         if cuda:
             self.model = model.cuda()
         else:
             self.model = model
         self.target_model = deepcopy(model)
-        self.opti = torch.optim.RMSprop(model.parameters(), lr=0.001)
+        self.opti = torch.optim.RMSprop(model.parameters(), lr=(lr if lr else 0.001))
         if opti_state:
             self.opti.load_state_dict(opti_state)
         self.memory = Memory(memory_size)
@@ -77,7 +77,7 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=1, clone_age=9000, observe=0):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=1, clone_age=9000, observe=0, start_epoch=0):
 
         age = 0
         n_actions = game.n_actions()
@@ -87,7 +87,7 @@ class Agent:
             epsilons = (0.9, 0.05, 900)
         eps = lambda s:epsilons[1] + (epsilons[0] - epsilons[1]) * np.exp(-s / epsilons[2])
 
-        for epoch in while_range(n_epochs):
+        for epoch in while_range(n_epochs, start=start_epoch):
 
             epsilon = eps(epoch)
             print("### Starting Game-Epoch {} \w eps={:.2f} ###".format(epoch, epsilon))
@@ -253,6 +253,8 @@ if __name__ == "__main__":
     parser.add_argument("--cuda", "-c", help="use CUDA", action="store_true")
     parser.add_argument("--resume", "-r", help="resume from snapshot", action="store", type=str, default="")
     parser.add_argument("--epsilon", "-e", help="fixed epsilon", action="store", type=float, default=None)
+    parser.add_argument("--epoch", help="starting epoch", action="store", type=int, default=0)
+    parser.add_argument("--lr", help="learning rate for RMSProp", action="store", type=float, default=None)
     args = parser.parse_args()
 
     game   = Game(easy=True, size=28)
@@ -271,6 +273,6 @@ if __name__ == "__main__":
     if args.epsilon is not None:
         args.epsilon = (args.epsilon, args.epsilon, 1)
 
-    agent = Agent(net, cuda=args.cuda, memory_size=50000)
+    agent = Agent(net, cuda=args.cuda, memory_size=50000, lr=args.lr)
 
-    agent.train(game, batch_size=128, max_steps=2000, save_interval=5, observe=10000, epsilons=args.epsilon)
+    agent.train(game, batch_size=128, max_steps=2000, save_interval=5, observe=10000, epsilons=args.epsilon, start_epoch=args.epoch)
