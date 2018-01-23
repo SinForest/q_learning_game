@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from tqdm import trange, tqdm
+tqdm.monitor_interval = 0
 from copy import deepcopy
 import os
 
@@ -77,7 +78,7 @@ class Agent:
         
         # init and load optimizer
         self.opti   = torch.optim.RMSprop(model.parameters(),  lr=(lr if lr else 0.001))
-        self.t_opti = torch.optim.RMSprop(model2.parameters(), lr=(lr if lr else 0.001))
+        self.t_opti = torch.optim.RMSprop(self.target_model.parameters(), lr=(lr if lr else 0.001))
         if opti_state:
             self.opti.load_state_dict(opti_state['optimizer'])
             self.t_opti.load_state_dict(opti_state['optimizer2'])
@@ -97,7 +98,7 @@ class Agent:
         self.target_model.eval()
 
         if epsilons is None:
-            epsilons = (0.9, 0.05, 900)
+            epsilons = (0.9, 0.05, 1111)
         eps = lambda s:epsilons[1] + (epsilons[0] - epsilons[1]) * np.exp(-s / epsilons[2])
 
         for epoch in while_range(n_epochs, start=start_epoch):
@@ -257,9 +258,9 @@ class Agent:
         #      maybe also store Game information (which would include some model meta data)
         d = {'epoch'      : epoch,
              'state_dict' : self.model.state_dict(),
-             'state_dict2': self.model2.state_dict(),
-             'optimizer'  : self.opti.state_dict()
-             'optimizer2' : self.opti2.state_dict()}
+             'state_dict2': self.target_model.state_dict(),
+             'optimizer'  : self.opti.state_dict(),
+             'optimizer2' : self.t_opti.state_dict()}
         torch.save(d, "snapshot_{}.nn".format(epoch))
 
 if __name__ == "__main__":
@@ -276,7 +277,7 @@ if __name__ == "__main__":
     parser.add_argument("--size", "-s", help="size of game", action="store", type=int, default=28)
     args = parser.parse_args()
 
-    game   = Game(easy=True, size=args.size)
+    game   = Game(size=args.size)
     inp    = game.get_visual(hud=False).shape[0]
     net    = NetworkSmallDuell(inp, 4)
     ostate = None
@@ -286,7 +287,8 @@ if __name__ == "__main__":
         if os.path.isfile(args.resume):
             cp = torch.load(args.resume, map_location={'cuda:0': 'cpu'})
             net.load_state_dict(cp['state_dict'])
-            net2.load_load_state_dict(cp['state_dict_2'])
+            net2 = NetworkSmallDuell(inp, 4)
+            net2.load_state_dict(cp['state_dict2'])
             ostate = cp
         else:
             raise FileNotFoundError("File {} not found.".format(args.resume))
