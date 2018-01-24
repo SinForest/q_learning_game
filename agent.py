@@ -38,12 +38,13 @@ class Memory:
         self.eps   = eps
         self.alpha = alpha
     
-    def store(self, S, a, r, Sp, err=0):
+    def store(self, S, a, r, Sp, game_over, err=0):
+        game_over = int(game_over)
         if len(self.mem) < self.size:
-            self.mem.append((S, a, r, Sp))
+            self.mem.append((S, a, r, Sp, game_over))
             self.pri.append((err + self.eps) ** self.alpha)
         else:
-            self.mem[self.pos] = (S, a, r, Sp)
+            self.mem[self.pos] = (S, a, r, Sp, game_over)
             self.pos = (self.pos + 1) % self.size
     
     def sample(self, batch_size):
@@ -98,7 +99,7 @@ class Agent:
         self.target_model.eval()
 
         if epsilons is None:
-            epsilons = (0.9, 0.05, 1111)
+            epsilons = (0.9, 0.05, 1000)
         eps = lambda s:epsilons[1] + (epsilons[0] - epsilons[1]) * np.exp(-s / epsilons[2])
 
         for epoch in while_range(n_epochs, start=start_epoch):
@@ -142,10 +143,10 @@ class Agent:
                 # calc error for priority
                 Q_val = Q_val.max(1)[0].data[0]
                 Q_max = self.target_model(self.to_var(Sp)).max(1)[0].data[0]
-                err   = np.abs(Q_val - (r + gamma * Q_max))
+                err   = np.abs(Q_val - (r + gamma * Q_max * (1 - int(game.you_lost))))
 
                 # save transition
-                self.memory.store(S, a, r, Sp, err)
+                self.memory.store(S, a, r, Sp, game.you_lost, err)
                 S  = Sp
 
                 # render view for spectating
@@ -210,18 +211,19 @@ class Agent:
 
     def train_on_memory(self, gamma, batch_size):
 
-        (S, a, r, Sp) = zip(*(self.memory.sample(batch_size)))
+        (S, a, r, Sp, go) = zip(*(self.memory.sample(batch_size)))
 
         S  = self.to_var(np.stack(S))
         a  = Variable(LongTensor(a).cuda() if self.cuda else LongTensor(a)).view(-1, 1)
         r  = Tensor(r).cuda() if self.cuda else Tensor(r)
         Sp = self.to_var(np.stack(Sp))
+        go = Tensor(go).cuda() if self.cuda else Tensor(go)
 
         self.switch_models()
 
         self.target_model.eval()
         Q_max = self.target_model(Sp).data.max(1)[0] # Variable containing maximum Q-value per S'
-        target = Variable(r + Q_max * gamma)
+        target = Variable(r + Q_max * gamma * (1 - go))
 
         self.model.train()
         self.opti.zero_grad()
@@ -285,6 +287,7 @@ if __name__ == "__main__":
 
     if args.resume:
         if os.path.isfile(args.resume):
+            print("Loading networks from {}".format(args.resume))
             cp = torch.load(args.resume, map_location={'cuda:0': 'cpu'})
             net.load_state_dict(cp['state_dict'])
             net2 = NetworkSmallDuell(inp, 4)
