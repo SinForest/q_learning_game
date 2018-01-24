@@ -1,6 +1,7 @@
 from model import NetworkSmallDuell
 from mechanics import Game
 from agent import Agent
+import numpy as np
 
 import pygame as pg
 import os
@@ -13,8 +14,10 @@ def resume(fp):
     if os.path.isfile(fp):
         cp = torch.load(fp, map_location={'cuda:0': 'cpu'})
         model = NetworkSmallDuell(32, 4)
+        model2 = NetworkSmallDuell(32, 4)
         model.load_state_dict(cp['state_dict'])
-        return model
+        model2.load_state_dict(cp['state_dict2'])
+        return model, model2
     else:
         raise FileNotFoundError("File {} not found.".format(fp))
 
@@ -24,13 +27,16 @@ def print_q_values(a, aa):
 
 if __name__ == "__main__":
     game  = Game(easy=True, size=28)
-    model = resume(sys.argv[1])
+    model, model2 = resume(sys.argv[1])
     model.eval()
+    model2.eval()
     ag = Agent(model, cuda=False) # for to_var
     resolution = game.get_visual().shape[:2]
     screen = pg.display.set_mode(resolution)
 
     while(True):
+        if np.random.randint(0,2):
+            model, model2 = model2, model
         state = game.get_visual(hud=False)
         field = game.get_visual(hud=True)
         pg.surfarray.blit_array(screen, field)
