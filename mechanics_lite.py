@@ -178,7 +178,8 @@ class Game:
         self.player = new_player
 
         # move enemies
-        self.move_enemy()
+        if self.enemy != self.player:
+            self.move_enemy()
 
         # test positions
         if self.player in self.coins:
