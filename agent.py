@@ -99,7 +99,7 @@ class Agent:
         self.target_model.eval()
 
         if epsilons is None:
-            epsilons = (0.9, 0.05, 1000)
+            epsilons = (0.9, 0.05, 800)
         eps = lambda s:epsilons[1] + (epsilons[0] - epsilons[1]) * np.exp(-s / epsilons[2])
 
         for epoch in while_range(n_epochs, start=start_epoch):
@@ -301,4 +301,4 @@ if __name__ == "__main__":
 
     agent = Agent(net, model2=net2, cuda=args.cuda, memory_size=50000, lr=args.lr)
 
-    agent.train(game, batch_size=128, max_steps=2000, save_interval=5, observe=10000, epsilons=args.epsilon, start_epoch=args.epoch)
+    agent.train(game, batch_size=128, max_steps=1000, save_interval=5, observe=10000, epsilons=args.epsilon, start_epoch=args.epoch)
