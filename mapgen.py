@@ -90,36 +90,6 @@ def generate_world(size=50, n_traps=None, n_nests=None):
     # add traps:
     traps = np.zeros_like(blocked).astype(bool)
     for i in range(n_traps):
-        """
-        while True:
-            x = np.random.randint(0, size, 2)
-            lines = []
-            if blocked[tuple(x)] == False:
-                continue
-            near = [l2(x, p) for p in np.stack(np.where(traps)).T]
-            if near and (min(near) - 3) < np.random.uniform(30):
-                continue
-                
-            for y in [[-1, 0], [1, 0], [0, -1], [0, 1]]:
-                xy = x + y
-                if (xy < 0).any(): continue
-                if (xy >= size).any(): continue
-                line = []
-                while blocked[tuple(xy)] == False:
-                    line.append(tuple(xy))
-                    xy += y
-                    if (xy < 0).any() or (xy >= size).any():
-                        line = []
-                        break
-                
-                lines.append(line)
-            lines = [x for x in lines if 2 <= len(x) <= 20]
-            if len(lines) > 0:
-                random.shuffle(lines)
-                for t in lines[0]:
-                    traps[t] = True
-                break
-        """
         
         while True:
             x = np.random.randint(0, size, 2)
@@ -140,21 +110,24 @@ def generate_world(size=50, n_traps=None, n_nests=None):
                         traps[t] = True
 
                 break
-
+    
     free = np.stack(np.where(((1 - blocked) - traps).astype(bool))).T
-    mx, ms = None, 0
-    for i in range(10000):
-        x = np.random.randint(0, len(free), n_nests - 1)
-        x = [free[e] for e in x]
-        s = sum([np.sqrt(l2(*t)) for t in itertools.product(x,x)])
-        if s > ms:
-            mx, ms = x, s
-    nests = [tuple(t) for t in mx]
+    if n_nests > 0:
+        mx, ms = None, 0
+        for i in range(10000):
+            x = np.random.randint(0, len(free), n_nests - 1)
+            x = [free[e] for e in x]
+            s = sum([np.sqrt(l2(*t)) for t in itertools.product(x,x)])
+            if s > ms:
+                mx, ms = x, s
+        nests = [tuple(t) for t in mx]
 
-    ind = np.argmin(((free - np.mean(mx, axis=0)) ** 2).sum(axis=1))
-    nests.append(tuple(free[ind]))
+        ind = np.argmin(((free - np.mean(mx, axis=0)) ** 2).sum(axis=1))
+        nests.append(tuple(free[ind]))
+    else:
+        nests = []
 
-    mx, ms = None, 0
+    mx, ms = None, -1
     for i in range(10000):
         x = np.random.randint(0, len(free))
         x = free[x]

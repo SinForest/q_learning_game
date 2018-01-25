@@ -1,18 +1,23 @@
 import pygame as pg
 import numpy as np
 from chrono import Timer
-from mechanics import Game
 import argparse
 
 parser = argparse.ArgumentParser(description='Start the game')
 parser.add_argument("--size",  "-s", help="hight/width of the game field", action="store", type=int, default=50)
 parser.add_argument("--easy",  "-e", help="trigger easy mode", action="store_true")
 parser.add_argument("--plain", "-p", help="draw plain HUD", action="store_true")
+parser.add_argument("--lite",  "-l", help="run alternative lite version", action="store_true")
 args = parser.parse_args()
 draw_hud = not args.plain
 
-# game = Game(30, 16, 5, 3)
-game = Game(size=args.size, easy=args.easy)
+if args.lite:
+    from mechanics_lite import Game
+    game = Game(size=args.size)
+else:
+    from mechanics import Game
+    game = Game(size=args.size, easy=args.easy)
+
 resolution = game.get_visual(hud=draw_hud).shape[:2]
 screen = pg.display.set_mode(resolution)
 

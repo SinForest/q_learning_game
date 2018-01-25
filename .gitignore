@@ -3,4 +3,5 @@ ignore/**
 **/__pycache__
 **/snapshot*.nn
 levels/**
+lite_levels/**
 **/snake.py
