@@ -9,6 +9,7 @@ from tqdm import trange, tqdm
 tqdm.monitor_interval = 0
 from copy import deepcopy
 import os
+import pickle
 
 TERM = {'y'  : "\33[33m",
         'g'  : "\33[32m",
@@ -54,7 +55,6 @@ class Memory:
         return np.array(self.mem)[idx]
 
     def pickle(self):
-        import pickle
         pickle.dump(self.mem, open("./memory.p", "wb"))
 
     def __len__(self):
@@ -90,6 +90,10 @@ class Agent:
         if view:
             import pygame as pg
             self.screen = pg.display.set_mode(view)
+        
+        self.losses  = {}
+        self.scores  = {}
+        self.test_sc = {}
 
 
     def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=2, observe=0, start_epoch=0):
@@ -162,6 +166,8 @@ class Agent:
             #[end] for steps in trange(max_steps, ncols=50)
             game.game_over()
             loss = (loss / n_lo if n_lo > 0 else -1)
+            self.losses[epoch] = loss
+            self.scores[epoch] = game.get_score()
             
             print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
                                                                                 TERM['g'], loss, TERM['clr'],))
@@ -171,9 +177,14 @@ class Agent:
                 sc = [self.play(game, max_steps) for __ in trange(20, ncols=44)]
                 sc = [x for x in sc if x is not None]
                 print(" --> best: {}, avg: {:.2f}".format(max(sc), sum(sc)/len(sc)))
+                self.test_sc[epoch] = sc
 
                 print("   --> writing model to file...\n" + TERM['clr'])
                 self.save(epoch)
+                log = {'losses'  : self.losses,
+                       'scores'  : self.scores,
+                       'test_sc' : self.test_sc}
+                pickle.dump(log, open("./training_log.p", 'wb'))
                 # self.memory.pickle()
 
             game.move_player(None) #restart game
