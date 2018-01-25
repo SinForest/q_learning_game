@@ -92,7 +92,7 @@ class Agent:
             self.screen = pg.display.set_mode(view)
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=1, observe=0, start_epoch=0):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=2, observe=0, start_epoch=0):
 
         n_actions = game.n_actions()
         self.model.eval()
@@ -135,7 +135,7 @@ class Agent:
 
                 # penalize invalid movements
                 if moved == False:
-                    r -= 10
+                    r -= 200
                 
                 # get next state
                 Sp = game.get_visual(hud=False)

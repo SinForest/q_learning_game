@@ -183,7 +183,7 @@ class Game:
 
         # test positions
         if self.player in self.coins:
-            self.scored(1)
+            self.scored(10)
             self.coins.remove(self.player)
             self.new_coin()
         if self.player == self.enemy:
@@ -213,7 +213,7 @@ class Game:
         self.you_lost = True
 
     def damage(self):
-        self.scored(-10)
+        self.scored(-200)
         self.spawn_enemy()
     
     def new_coin(self):
