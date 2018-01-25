@@ -266,7 +266,7 @@ class Agent:
         torch.save(d, "snapshot_{}.nn".format(epoch))
 
 if __name__ == "__main__":
-    from mechanics import Game
+    from mechanics_lite import Game
     from model import NetworkSmallDuell
     import argparse
 
