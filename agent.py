@@ -277,7 +277,7 @@ if __name__ == "__main__":
     parser.add_argument("--size", "-s", help="size of game", action="store", type=int, default=28)
     args = parser.parse_args()
 
-    game   = Game(size=args.size)
+    game   = Game(size=args.size, easy=True)
     inp    = game.get_visual(hud=False).shape[0]
     net    = NetworkSmallDuell(inp, 4)
     ostate = None
