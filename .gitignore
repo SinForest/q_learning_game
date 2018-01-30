@@ -5,3 +5,5 @@ ignore/**
 levels/**
 lite_levels/**
 **/snake.py
+**/*.p
+**/*.png

@@ -14,8 +14,8 @@ class NetworkSmallDuell(nn.Module):
                                   nn.PReLU(), # output = (16x16)
                                   nn.Conv2d(32, 32, kernel_size=4, stride=2, padding=1),
                                   nn.PReLU(), # output = (8x8)
-                                  nn.Conv2d(32, 32, kernel_size=4, stride=2, padding=1),
-                                  nn.PReLU()) # output = (4x4)
+                                  nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+                                  nn.PReLU()) # output != (4x4)
 
         tmp = Variable(torch.Tensor(1, 3, inp_size, inp_size))
         out_size = reduce(operator.mul, self.conv(tmp).size())

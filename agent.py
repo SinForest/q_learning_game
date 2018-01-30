@@ -84,6 +84,8 @@ class Agent:
             self.opti.load_state_dict(opti_state['optimizer'])
             self.t_opti.load_state_dict(opti_state['optimizer2'])
         
+        for param_group in self.opti.param_groups:
+            print(param_group['lr'])
         self.memory = Memory(memory_size)
 
         self.view = bool(view)
@@ -277,7 +279,8 @@ class Agent:
         torch.save(d, "snapshot_{}.nn".format(epoch))
 
 if __name__ == "__main__":
-    from mechanics_lite import Game
+    # from mechanics_lite import Game
+    from mechanics import Game
     from model import NetworkSmallDuell
     import argparse
 
@@ -290,7 +293,7 @@ if __name__ == "__main__":
     parser.add_argument("--size", "-s", help="size of game", action="store", type=int, default=28)
     args = parser.parse_args()
 
-    game   = Game(size=args.size)
+    game   = Game(size=args.size, easy=True)
     inp    = game.get_visual(hud=False).shape[0]
     net    = NetworkSmallDuell(inp, 4)
     ostate = None
