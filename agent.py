@@ -175,7 +175,7 @@ class Agent:
             self.scores[epoch] = game.get_score()
             
             print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
-                                                                                TERM['g'], loss, TERM['clr']))
+                                                                                TERM['g'], loss, TERM['clr'],))
 
             if (epoch % save_interval == 0 and len(self.memory) >= observe) or epoch + 1 == n_epochs:
                 print(TERM['c'] + " --> starting testing...")
