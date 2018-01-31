@@ -173,12 +173,9 @@ class Agent:
             loss = (loss / n_lo if n_lo > 0 else -1)
             self.losses[epoch] = loss
             self.scores[epoch] = game.get_score()
-
-            #DEBUG!
-            go_states = sum([1 for x in self.memory.mem if x[-1] == 1])
             
-            print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}, GO_memory:{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
-                                                                                TERM['g'], loss, TERM['clr'],go_states))
+            print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
+                                                                                TERM['g'], loss, TERM['clr']))
 
             if (epoch % save_interval == 0 and len(self.memory) >= observe) or epoch + 1 == n_epochs:
                 print(TERM['c'] + " --> starting testing...")
