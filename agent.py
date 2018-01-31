@@ -41,7 +41,7 @@ class Memory:
     
     def store(self, S, a, r, Sp, err=0):
         if len(self.mem) < self.size:
-            self.mem.append((S, a, r, Sp)
+            self.mem.append((S, a, r, Sp))
             self.pri.append((err + self.eps) ** self.alpha)
         else:
             self.mem[self.pos] = (S, a, r, Sp)
@@ -101,7 +101,7 @@ class Agent:
         self.test_sc = {}
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=0.1, observe=0, start_epoch=0):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=1, observe=0, start_epoch=0):
 
         n_actions = game.n_actions()
         self.model.eval()
@@ -144,7 +144,7 @@ class Agent:
 
                 # penalize invalid movements
                 if moved == False:
-                    r -= 5
+                    r -= 20
                 
                 # get next state
                 Sp = game.get_visual(hud=False)
