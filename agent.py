@@ -39,13 +39,12 @@ class Memory:
         self.eps   = eps
         self.alpha = alpha
     
-    def store(self, S, a, r, Sp, game_over, err=0):
-        game_over = int(game_over)
+    def store(self, S, a, r, Sp, err=0):
         if len(self.mem) < self.size:
-            self.mem.append((S, a, r, Sp, game_over))
+            self.mem.append((S, a, r, Sp)
             self.pri.append((err + self.eps) ** self.alpha)
         else:
-            self.mem[self.pos] = (S, a, r, Sp, game_over)
+            self.mem[self.pos] = (S, a, r, Sp)
             self.pos = (self.pos + 1) % self.size
     
     def sample(self, batch_size):
@@ -62,7 +61,7 @@ class Memory:
 
 class Agent:
 
-    def __init__(self, model, cuda=True, view=None, memory_size=1000, opti_state=None, lr=None, model2=None):
+    def __init__(self, model, cuda=True, view=None, memory_size=1000, state_dict=None, lr=None, model2=None):
         # generate or load model for DDQN
         if model2 is None:
             self.target_model = deepcopy(model)
@@ -80,9 +79,13 @@ class Agent:
         # init and load optimizer
         self.opti   = torch.optim.RMSprop(model.parameters(),  lr=(lr if lr else 0.001))
         self.t_opti = torch.optim.RMSprop(self.target_model.parameters(), lr=(lr if lr else 0.001))
-        if opti_state:
-            self.opti.load_state_dict(opti_state['optimizer'])
-            self.t_opti.load_state_dict(opti_state['optimizer2'])
+        if state_dict:
+            self.opti.load_state_dict(state_dict['optimizer'])
+            self.t_opti.load_state_dict(state_dict['optimizer2'])
+            for param_group in self.opti.param_groups:
+                param_group['lr'] = lr
+            for param_group in self.t_opti.param_groups:
+                param_group['lr'] = lr
         
         for param_group in self.opti.param_groups:
             print(param_group['lr'])
@@ -98,7 +101,7 @@ class Agent:
         self.test_sc = {}
 
 
-    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=2, observe=0, start_epoch=0):
+    def train(self, game, n_epochs=None, batch_size=256, gamma=0.85, epsilons=None, max_steps=None, save_interval=10, move_pen=0.1, observe=0, start_epoch=0):
 
         n_actions = game.n_actions()
         self.model.eval()
@@ -141,7 +144,7 @@ class Agent:
 
                 # penalize invalid movements
                 if moved == False:
-                    r -= 200
+                    r -= 5
                 
                 # get next state
                 Sp = game.get_visual(hud=False)
@@ -149,10 +152,10 @@ class Agent:
                 # calc error for priority
                 Q_val = Q_val.max(1)[0].data[0]
                 Q_max = self.target_model(self.to_var(Sp)).max(1)[0].data[0]
-                err   = np.abs(Q_val - (r + gamma * Q_max * (1 - int(game.you_lost))))
+                err   = np.abs(Q_val - (r + gamma * Q_max))
 
                 # save transition
-                self.memory.store(S, a, r, Sp, game.you_lost, err)
+                self.memory.store(S, a, r, Sp, err)
                 S  = Sp
 
                 # render view for spectating
@@ -170,9 +173,12 @@ class Agent:
             loss = (loss / n_lo if n_lo > 0 else -1)
             self.losses[epoch] = loss
             self.scores[epoch] = game.get_score()
+
+            #DEBUG!
+            go_states = sum([1 for x in self.memory.mem if x[-1] == 1])
             
-            print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
-                                                                                TERM['g'], loss, TERM['clr'],))
+            print("  --> end of round, {}score: {}{}, {}loss:{:.4f}{}, GO_memory:{}\n".format(TERM['y'], game.get_score(), TERM['clr'],
+                                                                                TERM['g'], loss, TERM['clr'],go_states))
 
             if (epoch % save_interval == 0 and len(self.memory) >= observe) or epoch + 1 == n_epochs:
                 print(TERM['c'] + " --> starting testing...")
@@ -224,19 +230,18 @@ class Agent:
 
     def train_on_memory(self, gamma, batch_size):
 
-        (S, a, r, Sp, go) = zip(*(self.memory.sample(batch_size)))
+        (S, a, r, Sp) = zip(*(self.memory.sample(batch_size)))
 
         S  = self.to_var(np.stack(S))
         a  = Variable(LongTensor(a).cuda() if self.cuda else LongTensor(a)).view(-1, 1)
         r  = Tensor(r).cuda() if self.cuda else Tensor(r)
         Sp = self.to_var(np.stack(Sp))
-        go = Tensor(go).cuda() if self.cuda else Tensor(go)
 
         self.switch_models()
 
         self.target_model.eval()
         Q_max = self.target_model(Sp).data.max(1)[0] # Variable containing maximum Q-value per S'
-        target = Variable(r + Q_max * gamma * (1 - go))
+        target = Variable(r + Q_max * gamma)
 
         self.model.train()
         self.opti.zero_grad()
@@ -296,7 +301,6 @@ if __name__ == "__main__":
     game   = Game(size=args.size, easy=True)
     inp    = game.get_visual(hud=False).shape[0]
     net    = NetworkSmallDuell(inp, 4)
-    ostate = None
     net2   = None
 
     if args.resume:
@@ -306,13 +310,14 @@ if __name__ == "__main__":
             net.load_state_dict(cp['state_dict'])
             net2 = NetworkSmallDuell(inp, 4)
             net2.load_state_dict(cp['state_dict2'])
-            ostate = cp
         else:
             raise FileNotFoundError("File {} not found.".format(args.resume))
+    else:
+        cp = None
     
     if args.epsilon is not None:
         args.epsilon = (args.epsilon, args.epsilon, 1)
 
-    agent = Agent(net, model2=net2, cuda=args.cuda, memory_size=50000, lr=args.lr)
+    agent = Agent(net, model2=net2, cuda=args.cuda, memory_size=50000, lr=args.lr, state_dict=cp)
 
     agent.train(game, batch_size=128, max_steps=1000, save_interval=5, observe=10000, epsilons=args.epsilon, start_epoch=args.epoch)
