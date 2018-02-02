@@ -74,7 +74,7 @@ class Game:
             'r': ( 1, 0),
               3: ( 1, 0),}
 
-    def __init__(self, size=50, stretch=8, pregen=2):
+    def __init__(self, size=50, stretch=8, pregen=2, easy=None):
 
         self.size      = size
         self.stretch   = stretch
